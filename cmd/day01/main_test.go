@@ -26,3 +26,11 @@ func Test_part1(t *testing.T) {
 	r.NoError(err)
 	r.Equal(7, got)
 }
+
+func Test_part2(t *testing.T) {
+	r := require.New(t)
+
+	got, err := part2(strings.NewReader(example))
+	r.NoError(err)
+	r.Equal(5, got)
+}
