@@ -81,6 +81,8 @@ func part2(r io.Reader) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		// the current window will be larger than the previous iff
+		// b + c + next > a + b + c
 		if next > a {
 			count++
 		}
