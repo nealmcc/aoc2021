@@ -19,9 +19,10 @@ forward 2
 func Test_part1(t *testing.T) {
 	r := require.New(t)
 
-	got, err := part1(vector.Coord{}, strings.NewReader(example))
+	sub := submarine{}
+	err := part1(&sub, strings.NewReader(example))
 	r.NoError(err)
-	r.Equal(vector.Coord{X: 15, Y: 10}, got)
+	r.Equal(vector.Coord{X: 15, Y: 10}, sub.coord)
 }
 
 func Test_part2(t *testing.T) {

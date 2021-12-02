@@ -20,103 +20,96 @@ func main() {
 	}
 	defer in.Close()
 
-	start := vector.Coord{}
-	coord, err := part1(start, in)
+	sub1 := submarine{}
+	err = part1(&sub1, in)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("part 1 product", coord.X*coord.Y)
+	fmt.Println("part 1 product", sub1.coord.X*sub1.coord.Y)
 
 	in.Seek(0, io.SeekStart)
 
-	sub := submarine{}
-	part2(&sub, in)
-	fmt.Println("part 2 product", sub.coord.X*sub.coord.Y)
+	sub2 := submarine{}
+	part2(&sub2, in)
+	fmt.Println("part 2 product", sub2.coord.X*sub2.coord.Y)
 }
 
-func part1(start vector.Coord, in io.Reader) (vector.Coord, error) {
-	s := bufio.NewScanner(in)
-
-	// parsePart1 converts 'up 3' into a vector { X: 0, Y:-3 }.
-	// Note that for this coordinate system, down is positive Y.
-	parsePart1 := func(cmd string) (vector.Coord, error) {
-		parts := strings.Split(cmd, " ")
-
-		var v vector.Coord
-
-		switch parts[0] {
-		case "forward":
-			v.X = 1
-		case "up":
-			v.Y = -1
-		case "down":
-			v.Y = 1
-		default:
-			return v, errors.New("invalid command")
-		}
-
-		sc, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return v, err
-		}
-		v = vector.Scale(v, sc)
-		return v, nil
-	}
-
-	curr := start
-	for s.Scan() {
-		delta, err := parsePart1(s.Text())
-		if err != nil {
-			return vector.Coord{}, err
-		}
-		curr = vector.Add(curr, delta)
-	}
-
-	if err := s.Err(); err != nil {
-		return vector.Coord{}, err
-	}
-
-	return curr, nil
-}
-
-func part2(sub *submarine, in io.Reader) error {
+func part1(sub *submarine, in io.Reader) error {
 	s := bufio.NewScanner(in)
 
 	for s.Scan() {
-		if err := sub.do(s.Text()); err != nil {
+		if err := sub.movePart1(s.Text()); err != nil {
 			return err
 		}
 	}
 
-	if err := s.Err(); err != nil {
-		return err
+	return s.Err()
+}
+
+func part2(sub *submarine, in io.Reader) error {
+	s := bufio.NewScanner(in)
+	for s.Scan() {
+		if err := sub.movePart2(s.Text()); err != nil {
+			return err
+		}
 	}
-	return nil
+
+	return s.Err()
 }
 
+// submarine represents a submarine with a position and (for part2) an aim.
 type submarine struct {
+	// coord is the submarine's position. Down is positive Y.
 	coord vector.Coord
-	aim   int
+	// aim is used for part2, when adjusting the submarine's up/down aim.
+	aim int
 }
 
-// do parses and executes the given command, following the rules for part2.
-func (s *submarine) do(cmd string) error {
+// movePart1 parses and executes the given command, following the rules for part1.
+func (s *submarine) movePart1(cmd string) error {
 	parts := strings.Split(cmd, " ")
+
 	dir := parts[0]
 	scale, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return err
 	}
+
 	switch dir {
-	case "down":
-		s.aim += scale
-	case "up":
-		s.aim -= scale
 	case "forward":
 		s.coord.X += scale
-		s.coord.Y += s.aim * scale
+	case "up":
+		s.coord.Y -= scale
+	case "down":
+		s.coord.Y += scale
 	default:
 		return errors.New("invalid command")
 	}
+
+	return nil
+}
+
+// movePart2 parses and executes the given command, following the rules for part2.
+func (s *submarine) movePart2(cmd string) error {
+	parts := strings.Split(cmd, " ")
+
+	dir := parts[0]
+	scale, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return err
+	}
+
+	switch dir {
+	case "forward":
+		s.coord.X += scale
+		s.coord.Y += s.aim * scale
+	case "up":
+		s.aim -= scale
+	case "down":
+		s.aim += scale
+	default:
+		return errors.New("invalid command")
+	}
+
 	return nil
 }
