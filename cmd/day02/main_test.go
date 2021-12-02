@@ -23,3 +23,12 @@ func Test_part1(t *testing.T) {
 	r.NoError(err)
 	r.Equal(vector.Coord{X: 15, Y: 10}, got)
 }
+
+func Test_part2(t *testing.T) {
+	r := require.New(t)
+
+	sub := submarine{}
+	err := part2(&sub, strings.NewReader(example))
+	r.NoError(err)
+	r.Equal(vector.Coord{X: 15, Y: 60}, sub.coord)
+}
