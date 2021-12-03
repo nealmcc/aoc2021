@@ -5,23 +5,23 @@ import (
 	"strconv"
 )
 
-// meter represents a power meter, capable of sampling power data.
+// meter represents a diagnostic meter which samples data.
 type meter struct {
 	// ones tracks the count of ones that have been set for each position
 	ones []int
-	// count is the total number of times this meter has taken a sample
+	// count is the total number of samples this meter has taken
 	count int
 }
 
-// newMeter creates a new power meter, rated for
-// reading power samples with n bits of data.
+// newMeter creates a new diagnostic meter, rated for
+// reading diagnostic samples with n bits of data.
 func newMeter(n int) *meter {
 	return &meter{
 		ones: make([]int, n),
 	}
 }
 
-// sample a single power measurement, storing the results in the meter.
+// sample a single value, storing the results in the meter.
 func (m *meter) sample(s string) error {
 	n, err := strconv.ParseInt(s, 2, 16)
 	if err != nil {
