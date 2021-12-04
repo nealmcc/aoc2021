@@ -16,14 +16,23 @@ func main() {
 	}
 	defer in.Close()
 
-	diag, err := part1(in)
+	diag, err := read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("part 1 product", diag.gamma()*diag.epsilon())
+	o2, err := diag.oxygen()
+	if err != nil {
+		log.Fatal(err)
+	}
+	co2, err := diag.carbonDioxide()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("part 2 product", o2*co2)
 }
 
-func part1(r io.Reader) (*meter, error) {
+func read(r io.Reader) (*meter, error) {
 	s := bufio.NewScanner(r)
 	if !s.Scan() {
 		return nil, errors.New("input too short")

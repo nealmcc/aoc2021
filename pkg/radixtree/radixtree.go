@@ -67,3 +67,29 @@ func (n *Node) Insert(s string) {
 	}
 	n.hasValue = true
 }
+
+// ToSlice converts this tree into a slice of values. The order is undefined.
+func (n *Node) ToSlice(path ...byte) []string {
+	// todo: improve efficiency
+	words := make([]string, 0)
+	if n.hasValue {
+		words = append(words, string(path))
+	}
+	for k, v := range n.children {
+		nextPath := append(path, k)
+		words = append(words, v.ToSlice(nextPath...)...)
+	}
+	return words
+}
+
+// Size returns the number of values in the tree.
+func (n *Node) Size() int {
+	sum := 0
+	if n.hasValue {
+		sum++
+	}
+	for _, v := range n.children {
+		sum += v.Size()
+	}
+	return sum
+}
