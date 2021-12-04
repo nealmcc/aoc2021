@@ -23,8 +23,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	i, n := play(boards, turns)
-	fmt.Printf("part1: board %d wins on turn %d with score %d\n",
+	i, n := part1(boards, turns)
+	fmt.Printf("part1: board %d wins first on turn %d with score %d\n",
+		i, n, boards[i].sum()*turns[n])
+
+	// reset the bingo boards for part 2
+	in.Seek(0, io.SeekStart)
+	turns, boards, err = read(in)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	i, n = part2(boards, turns)
+	fmt.Printf("part2: board %d wins last on turn %d with score %d\n",
 		i, n, boards[i].sum()*turns[n])
 }
 
@@ -88,9 +99,9 @@ func readBoards(s *bufio.Scanner) ([]*board, error) {
 	return boards, nil
 }
 
-// play the given turns for all the boards, until one board wins.
-// return the index of the winning board, and the turn number starting from 0
-func play(boards []*board, turns []int) (winner, turn int) {
+// part1 plays the given turns for all the boards, until one board wins.
+// returns the index of the winning board, and the turn number starting from 0.
+func part1(boards []*board, turns []int) (first, turn int) {
 	for i1, n := range turns {
 		fmt.Printf("\nround %2d: %2d\n", i1, n)
 		for i2, b := range boards {
@@ -103,4 +114,30 @@ func play(boards []*board, turns []int) (winner, turn int) {
 		}
 	}
 	return -1, -1
+}
+
+// part2 plays the game until all boards have won.
+// Assumes that all boards will eventually win.
+// returns the last board to win, and which turn this happens on.
+func part2(boards []*board, turns []int) (last, turn int) {
+	winners := make([]int, 0, 32)
+	turn = 0
+	for len(winners) < len(boards) {
+		n := turns[turn]
+		fmt.Printf("\nround %2d: %2d\n", turn, n)
+		for i, b := range boards {
+			if b.won {
+				continue
+			}
+			b.stamp(n)
+			fmt.Println(b)
+			fmt.Println()
+			if b.won {
+				winners = append(winners, i)
+			}
+		}
+		turn++
+	}
+
+	return winners[len(winners)-1], turn - 1
 }
