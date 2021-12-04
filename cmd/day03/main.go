@@ -16,11 +16,11 @@ func main() {
 	}
 	defer in.Close()
 
-	p1, err := part1(in)
+	diag, err := part1(in)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("part 1 product", p1.gamma()*p1.epsilon())
+	fmt.Println("part 1 product", diag.gamma()*diag.epsilon())
 }
 
 func part1(r io.Reader) (*meter, error) {

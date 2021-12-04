@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"strconv"
+
+	"github.com/nealmcc/aoc2021/pkg/radixtree"
 )
 
 // meter represents a diagnostic meter which samples data.
@@ -11,13 +13,16 @@ type meter struct {
 	ones []int
 	// count is the total number of samples this meter has taken
 	count int
+	// samples is a dictionary of all the data that this meter collected
+	samples *radixtree.Node
 }
 
 // newMeter creates a new diagnostic meter, rated for
 // reading diagnostic samples with n bits of data.
 func newMeter(n int) *meter {
 	return &meter{
-		ones: make([]int, n),
+		ones:    make([]int, n),
+		samples: &radixtree.Node{},
 	}
 }
 
@@ -30,6 +35,8 @@ func (m *meter) sample(s string) error {
 	if n > m.maxSample() {
 		return errors.New("input too large")
 	}
+
+	m.samples.Insert(s)
 
 	var rem int64
 	for i := len(m.ones) - 1; i >= 0; i-- {
