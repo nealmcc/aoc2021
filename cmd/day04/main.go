@@ -24,8 +24,10 @@ func main() {
 	}
 
 	i, n := part1(boards, turns)
-	fmt.Printf("part1: board %d wins first on turn %d with score %d\n",
-		i, n, boards[i].sum()*turns[n])
+	b := boards[i]
+	score := b.sum() * turns[n]
+	fmt.Printf("part1: board %d wins on turn %d with score %d\n", i, n, score)
+	fmt.Println(b)
 
 	// reset the bingo boards for part 2
 	in.Seek(0, io.SeekStart)
@@ -35,8 +37,11 @@ func main() {
 	}
 
 	i, n = part2(boards, turns)
-	fmt.Printf("part2: board %d wins last on turn %d with score %d\n",
-		i, n, boards[i].sum()*turns[n])
+	b = boards[i]
+	score = b.sum() * turns[n]
+	fmt.Println()
+	fmt.Printf("part2: board %d wins on turn %d with score %d\n", i, n, score)
+	fmt.Println(b)
 }
 
 func read(r io.Reader) (turns []int, boards []*board, err error) {
@@ -103,17 +108,15 @@ func readBoards(s *bufio.Scanner) ([]*board, error) {
 // returns the index of the winning board, and the turn number starting from 0.
 func part1(boards []*board, turns []int) (first, turn int) {
 	for i1, n := range turns {
-		fmt.Printf("\nround %2d: %2d\n", i1, n)
 		for i2, b := range boards {
 			b.stamp(n)
-			fmt.Println(b)
-			fmt.Println()
 			if b.won {
 				return i2, i1
 			}
 		}
 	}
-	return -1, -1
+	log.Fatal(errors.New("nobody won"))
+	return
 }
 
 // part2 plays the game until all boards have won.
@@ -124,14 +127,11 @@ func part2(boards []*board, turns []int) (last, turn int) {
 	turn = 0
 	for len(winners) < len(boards) {
 		n := turns[turn]
-		fmt.Printf("\nround %2d: %2d\n", turn, n)
 		for i, b := range boards {
 			if b.won {
 				continue
 			}
 			b.stamp(n)
-			fmt.Println(b)
-			fmt.Println()
 			if b.won {
 				winners = append(winners, i)
 			}

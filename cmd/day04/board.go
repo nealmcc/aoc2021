@@ -89,6 +89,6 @@ func (b *board) Format(s fmt.State, verb rune) {
 	}
 	s.Write([]byte(strings.Join(symbols[4][:], " ")))
 	if b.won {
-		s.Write([]byte{'\n', 'W', 'i', 'n', 'n', 'n', 'e', 'r', '!'})
+		s.Write([]byte{'\n', 'B', 'i', 'n', 'g', 'o', '!', '!', '!'})
 	}
 }
