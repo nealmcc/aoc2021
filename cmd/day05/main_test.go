@@ -28,8 +28,8 @@ func Test_part1(t *testing.T) {
 	r.NoError(err)
 	a.Equal(10, len(segments))
 
-	// diag, err := render(segments)
-	// 	picture := fmt.Sprintf("%v", diag)
+	diagram := render(segments, false)
+	// 	picture := fmt.Sprintf("%v", diagram)
 	// 	a.Equal(`.......1..
 	// ..1....1..
 	// ..1....1..
@@ -41,6 +41,31 @@ func Test_part1(t *testing.T) {
 	// ..........
 	// 222111....`, picture)
 
-	// p1 := part1(diag)
-	// a.Equal(5, p1)
+	p1 := count(diagram)
+	a.Equal(5, p1)
+}
+
+func Test_part2(t *testing.T) {
+	r := require.New(t)
+	a := assert.New(t)
+
+	segments, err := read(strings.NewReader(example))
+	r.NoError(err)
+	a.Equal(10, len(segments))
+
+	diagram := render(segments, true)
+	// 	picture := fmt.Sprintf("%v", diagram)
+	// 	a.Equal(`.......1..
+	// ..1....1..
+	// ..1....1..
+	// .......1..
+	// .112111211
+	// ..........
+	// ..........
+	// ..........
+	// ..........
+	// 222111....`, picture)
+
+	p2 := count(diagram)
+	a.Equal(12, p2)
 }
