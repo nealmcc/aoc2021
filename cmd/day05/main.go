@@ -25,10 +25,10 @@ func main() {
 	}
 
 	d1 := render(segments, false)
-	fmt.Printf("part1: %d\n", count(d1))
+	fmt.Printf("%v\npart1: %d\n", d1, count(d1))
 
 	d2 := render(segments, true)
-	fmt.Printf("part2: %d\n", count(d2))
+	fmt.Printf("%v\npart2: %d\n", d2, count(d2))
 }
 
 // segment is a line segment from a to b.
@@ -39,6 +39,8 @@ type segment struct {
 // bitmap stores how many fissures are at each coordinate
 type bitmap struct {
 	points map[v.Coord]int
+	width  int
+	height int
 }
 
 // read a list of line segments from the given input
@@ -64,7 +66,9 @@ func read(r io.Reader) ([]segment, error) {
 // fissures are present at each position.  The includeDiag parameteter
 // determines whether to include diagonal fissures (part 2) or not (part 1)
 func render(segments []segment, includeDiag bool) bitmap {
-	points := make(map[v.Coord]int)
+	b := bitmap{
+		points: make(map[v.Coord]int),
+	}
 
 	for _, seg := range segments {
 		delta := v.Sub(seg.b, seg.a)
@@ -72,19 +76,34 @@ func render(segments []segment, includeDiag bool) bitmap {
 			continue
 		}
 
+		if seg.a.X > b.width {
+			b.width = seg.a.X
+		}
+		if seg.b.X > b.width {
+			b.width = seg.b.X
+		}
+		if seg.a.Y > b.height {
+			b.height = seg.a.Y
+		}
+		if seg.b.Y > b.height {
+			b.height = seg.b.Y
+		}
+
 		curr := seg.a
-		points[curr]++
+		b.points[curr]++
 
 		unit, _ := v.Reduce(delta)
 		for curr != seg.b {
 			curr = v.Add(curr, unit)
-			points[curr]++
+			b.points[curr]++
 		}
 	}
 
-	return bitmap{
-		points: points,
+	if len(b.points) > 0 {
+		b.width++
+		b.height++
 	}
+	return b
 }
 
 // count the number of points in the given bitmap that have 2 or more fissures
@@ -96,4 +115,26 @@ func count(b bitmap) int {
 		}
 	}
 	return sum
+}
+
+// compile-time interface check
+var _ fmt.Formatter = bitmap{}
+
+// Format implements the fmt.Formatter interface, so we can easily view
+// the bitmap, just by using fmt.Println() or fmt.Printf() etc.
+// the formatting options and verb are ignored.
+func (b bitmap) Format(state fmt.State, verb rune) {
+	for y := 0; y < b.height; y++ {
+		for x := 0; x < b.width; x++ {
+			count := b.points[v.Coord{X: x, Y: y}]
+			if count > 0 {
+				state.Write([]byte{'0' + byte(count)})
+			} else {
+				state.Write([]byte{'.'})
+			}
+		}
+		if b.height-y > 1 {
+			state.Write([]byte{'\n'})
+		}
+	}
 }

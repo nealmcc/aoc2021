@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -29,16 +30,16 @@ func Test_part1(t *testing.T) {
 	a.Equal(10, len(segments))
 
 	diagram := render(segments, false)
-	// 	a.Equal(`.......1..
-	// ..1....1..
-	// ..1....1..
-	// .......1..
-	// .112111211
-	// ..........
-	// ..........
-	// ..........
-	// ..........
-	// 222111....`, fmt.Sprintf("%v", diagram))
+	a.Equal(`.......1..
+..1....1..
+..1....1..
+.......1..
+.112111211
+..........
+..........
+..........
+..........
+222111....`, fmt.Sprintf("%v", diagram))
 
 	p1 := count(diagram)
 	a.Equal(5, p1)
@@ -53,16 +54,16 @@ func Test_part2(t *testing.T) {
 	a.Equal(10, len(segments))
 
 	diagram := render(segments, true)
-	// 	a.Equal(`1.1....11.
-	// .111...2..
-	// ..2.1.111.
-	// ...1.2.2..
-	// .112313211
-	// ...1.2....
-	// ..1...1...
-	// .1.....1..
-	// 1.......1.
-	// 222111....`, fmt.Sprintf("%v", diagram))
+	a.Equal(`1.1....11.
+.111...2..
+..2.1.111.
+...1.2.2..
+.112313211
+...1.2....
+..1...1...
+.1.....1..
+1.......1.
+222111....`, fmt.Sprintf("%v", diagram))
 
 	p2 := count(diagram)
 	a.Equal(12, p2)
