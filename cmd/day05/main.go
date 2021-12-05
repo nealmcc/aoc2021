@@ -3,6 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io"
 	"log"
 	"os"
@@ -25,10 +29,24 @@ func main() {
 	}
 
 	d1 := render(segments, false)
-	fmt.Printf("%v\npart1: %d\n", d1, count(d1))
+	fmt.Printf("part1: %d\n", count(d1))
+
+	png1, err := os.Create("./part1.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer png1.Close()
+	writePNG(d1, png1)
 
 	d2 := render(segments, true)
-	fmt.Printf("%v\npart2: %d\n", d2, count(d2))
+	fmt.Printf("part2: %d\n", count(d2))
+
+	png2, err := os.Create("./part2.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer png2.Close()
+	writePNG(d2, png2)
 }
 
 // segment is a line segment from a to b.
@@ -137,4 +155,23 @@ func (b bitmap) Format(state fmt.State, verb rune) {
 			state.Write([]byte{'\n'})
 		}
 	}
+}
+
+func writePNG(b bitmap, w io.Writer) error {
+	img := image.NewNRGBA(image.Rect(0, 0, b.width, b.height))
+	bg := image.Uniform{color.White}
+	draw.Draw(img, img.Bounds(), &bg, image.ZP, draw.Src)
+	for y := 0; y < b.height; y++ {
+		for x := 0; x < b.width; x++ {
+			count := b.points[v.Coord{X: x, Y: y}]
+			if count == 0 {
+				continue
+			}
+			img.Set(x, y, color.NRGBA{
+				B: uint8(255),
+				A: uint8(255) / uint8(count),
+			})
+		}
+	}
+	return png.Encode(w, img)
 }
