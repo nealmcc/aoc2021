@@ -48,7 +48,7 @@ func Test_part1(t *testing.T) {
  6 10  3 18  5
  1 12 20 15 19`, fmt.Sprintf("%v", boards[0]))
 
-	i, n := play(boards, turns)
+	i, n := part1(boards, turns)
 	a.Equal(2, i)
 	a.Equal(11, n)
 	a.Equal(188, boards[i].sum())
