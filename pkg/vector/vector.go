@@ -56,18 +56,12 @@ func Sub(a, b Coord) Coord {
 	}
 }
 
-func IsZero(v Coord) bool {
-	return v == Coord{}
-}
-
 // Reduce returns the shortest vector with the same direction as v,
 // that can still be represented with integer values for X and Y.
 // Also returns the largest positive integer that evenly divides v.
 //
 // Example:
-//    Reduce{{X: 12, Y: 3}} => {X: 4, Y: 1}, 3
-//
-// Note that Reduce(v1) == (v2, n) if and only if Scale(v2, n) == v1.
+//    Reduce({ X: -12, Y: -3 }) => { X: -4, Y: -1}, 3
 func Reduce(v Coord) (Coord, int) {
 	if (v == Coord{}) {
 		return v, 1
@@ -95,14 +89,6 @@ func Reduce(v Coord) (Coord, int) {
 		X: v.X / scale,
 		Y: v.Y / scale,
 	}, scale
-}
-
-// Scale returns the scalar product of v and n.
-func Scale(v Coord, n int) Coord {
-	return Coord{
-		X: v.X * n,
-		Y: v.Y * n,
-	}
 }
 
 // gcd calculates the greatest common divisor of a and b.

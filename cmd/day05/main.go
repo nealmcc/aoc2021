@@ -11,6 +11,7 @@ import (
 	v "github.com/nealmcc/aoc2021/pkg/vector"
 )
 
+// main solves the both part 1 and part 2, reading from input.txt
 func main() {
 	in, err := os.Open("input.txt")
 	if err != nil {
@@ -22,7 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(segments)
 
 	d1 := render(segments, false)
 	fmt.Printf("part1: %d\n", count(d1))
@@ -31,16 +31,27 @@ func main() {
 	fmt.Printf("part2: %d\n", count(d2))
 }
 
-func read(r io.Reader) ([]v.Segment, error) {
+// segment is a line segment from a to b.
+type segment struct {
+	a, b v.Coord
+}
+
+// bitmap stores how many fissures are at each coordinate
+type bitmap struct {
+	points map[v.Coord]int
+}
+
+// read a list of line segments from the given input
+func read(r io.Reader) ([]segment, error) {
 	s := bufio.NewScanner(r)
 
-	segments := make([]v.Segment, 0, 16)
+	segments := make([]segment, 0, 16)
 	for s.Scan() {
 		coords, err := v.ParseCoords(strings.Split(s.Text(), " -> ")...)
 		if err != nil {
 			return nil, err
 		}
-		segments = append(segments, v.Segment{A: coords[0], B: coords[1]})
+		segments = append(segments, segment{a: coords[0], b: coords[1]})
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
@@ -49,27 +60,25 @@ func read(r io.Reader) ([]v.Segment, error) {
 	return segments, nil
 }
 
-type bitmap struct {
-	// points stores how many fissures overlap the given coordinate
-	points map[v.Coord]int
-}
-
-func render(segments []v.Segment, includeDiag bool) bitmap {
+// render plots the list of segments, creating a bitmap showing how many
+// fissures are present at each position.  The includeDiag parameteter
+// determines whether to include diagonal fissures (part 2) or not (part 1)
+func render(segments []segment, includeDiag bool) bitmap {
 	points := make(map[v.Coord]int)
 
 	for _, seg := range segments {
-		delta := v.Sub(seg.B, seg.A)
+		delta := v.Sub(seg.b, seg.a)
 		if !includeDiag && delta.X != 0 && delta.Y != 0 {
 			continue
 		}
 
-		curr := seg.A
-		points[curr] = points[curr] + 1
+		curr := seg.a
+		points[curr]++
 
 		unit, _ := v.Reduce(delta)
-		for curr != seg.B {
+		for curr != seg.b {
 			curr = v.Add(curr, unit)
-			points[curr] = points[curr] + 1
+			points[curr]++
 		}
 	}
 
@@ -78,6 +87,7 @@ func render(segments []v.Segment, includeDiag bool) bitmap {
 	}
 }
 
+// count the number of points in the given bitmap that have 2 or more fissures
 func count(b bitmap) int {
 	sum := 0
 	for _, n := range b.points {
