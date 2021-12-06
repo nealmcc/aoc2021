@@ -160,7 +160,7 @@ func (b bitmap) Format(state fmt.State, verb rune) {
 func writePNG(b bitmap, w io.Writer) error {
 	img := image.NewNRGBA(image.Rect(0, 0, b.width, b.height))
 	bg := image.Uniform{color.White}
-	draw.Draw(img, img.Bounds(), &bg, image.ZP, draw.Src)
+	draw.Draw(img, img.Bounds(), &bg, image.Point{}, draw.Src)
 	for y := 0; y < b.height; y++ {
 		for x := 0; x < b.width; x++ {
 			count := b.points[v.Coord{X: x, Y: y}]
