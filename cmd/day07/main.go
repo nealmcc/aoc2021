@@ -17,14 +17,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	sort.Ints(crabs)
+
 	_, fuel := part1(crabs)
 	fmt.Printf("part1: %d\n", fuel)
+
+	_, fuel = part2(crabs)
+	fmt.Printf("part2: %d\n", fuel)
 }
 
 // read a school of fish from the given input
 func read(in string) ([]int, error) {
 	parts := strings.Split(in, ",")
-
 	crabs := make([]int, 0, 32)
 
 	for _, a := range parts {
@@ -39,7 +43,6 @@ func read(in string) ([]int, error) {
 }
 
 func part1(crabs []int) (pos, fuel int) {
-	sort.Ints(crabs)
 	left, right := crabs[0], crabs[len(crabs)-1]
 
 	cost := func(x int) int {
@@ -49,6 +52,37 @@ func part1(crabs []int) (pos, fuel int) {
 			if fuel < 0 {
 				fuel *= -1
 			}
+			sum += fuel
+		}
+		return sum
+	}
+
+	pos, min := left, cost(left)
+	for i := left + 1; i <= right; i++ {
+		c := cost(i)
+		if c < min {
+			pos, min = i, c
+		} else {
+			// the fuel cost curve will have a minimum somewhere in the middle.
+			// once the cost starts rising, it will not go back down.
+			break
+		}
+	}
+
+	return pos, min
+}
+
+func part2(crabs []int) (pos, fuel int) {
+	left, right := crabs[0], crabs[len(crabs)-1]
+
+	cost := func(x int) int {
+		sum := 0
+		for _, pos := range crabs {
+			dist := pos - x
+			if dist < 0 {
+				dist *= -1
+			}
+			fuel := (dist * (dist + 1)) / 2
 			sum += fuel
 		}
 		return sum
