@@ -19,7 +19,8 @@ func Test_part1(t *testing.T) {
 	a.Equal(10, len(crabs))
 
 	sort.Ints(crabs)
-	pos, fuel := part1(crabs)
+	left, right := crabs[0], crabs[len(crabs)-1]
+	pos, fuel := part1(crabs, left, right)
 	a.Equal(2, pos)
 	a.Equal(37, fuel)
 }
@@ -32,7 +33,8 @@ func Test_part2(t *testing.T) {
 	r.NoError(err)
 
 	sort.Ints(crabs)
-	pos, fuel := part2(crabs)
+	left, right := crabs[0], crabs[len(crabs)-1]
+	pos, fuel := part2(crabs, left, right)
 	a.Equal(5, pos)
 	a.Equal(168, fuel)
 }
