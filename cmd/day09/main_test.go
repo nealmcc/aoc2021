@@ -33,3 +33,14 @@ func Test_part1(t *testing.T) {
 
 	r.Equal(15, got)
 }
+
+func Test_part2(t *testing.T) {
+	r := require.New(t)
+
+	land, err := read(strings.NewReader(example))
+	r.NoError(err)
+
+	got := part2(land)
+
+	r.Equal(1134, got)
+}
