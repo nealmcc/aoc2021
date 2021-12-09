@@ -122,22 +122,12 @@ func (t terrain) basins() []terrain {
 		basins = append(basins, terrain(b))
 	}
 
-	for pos, h := range t {
-		if h == 9 {
-			delete(t, pos)
-			continue
-		}
-		for _, b := range basins {
-			if b.connectsTo(pos) {
-				b[pos] = h
+	for len(t) > 0 {
+		for pos, h := range t {
+			if h == 9 {
 				delete(t, pos)
 				continue
 			}
-		}
-	}
-
-	for len(t) > 0 {
-		for pos, h := range t {
 			for _, b := range basins {
 				if b.connectsTo(pos) {
 					b[pos] = h
