@@ -54,7 +54,7 @@ func (l *line) parse() (err error) {
 
 	l.chunks = make([]chunk, 0)
 
-	s := &stack.Stack{}
+	s := &stack.ByteStack{}
 	i := 0
 	for j, b := range l.raw {
 		switch {
@@ -108,7 +108,7 @@ func (l *line) suggest() []bracket {
 	}
 
 	result := make([]bracket, 0, 8)
-	s := &stack.Stack{}
+	s := &stack.ByteStack{}
 	for _, b := range l.raw[start:] {
 		switch {
 		case isOpen(b):
