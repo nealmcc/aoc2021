@@ -99,23 +99,53 @@ func isClose(b bracket) bool {
 	return ok
 }
 
-// suggest completes an incomplete line by closing the brackets
-func (l *line) suggest() []byte {
-	return nil
+// suggest returns the sequence of brackets that will complete an incomplete line.
+// Assumes the line is not corrupt.
+func (l *line) suggest() []bracket {
+	start := 0
+	for _, ch := range l.chunks {
+		start += len(ch)
+	}
+
+	result := make([]bracket, 0, 8)
+	s := &stack.Stack{}
+	for _, b := range l.raw[start:] {
+		switch {
+		case isOpen(b):
+			s.Push(b)
+
+		case isClose(b):
+			top := s.Pop()
+			want := pairs[top]
+			for want != b {
+				result = append(result, want)
+				top = s.Pop()
+				want = pairs[top]
+			}
+		}
+	}
+
+	for s.Length() > 0 {
+		top := s.Pop()
+		want := pairs[top]
+		result = append(result, want)
+	}
+	return result
 }
 
-func suggestScore(rest []byte) int {
-	sc := map[byte]int{
+func value(suffix []bracket) int {
+	value := map[bracket]int{
 		')': 1,
 		']': 2,
 		'}': 3,
 		'>': 4,
 	}
 
-	sum := 0
-	for _, b := range rest {
-		sum += sc[b]
+	score := 0
+	for _, b := range suffix {
+		score *= 5
+		score += value[b]
 	}
 
-	return sum
+	return score
 }

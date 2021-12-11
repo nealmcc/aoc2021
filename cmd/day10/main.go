@@ -64,7 +64,7 @@ func part2(nav []line) int {
 	scores := make([]int, 0, 32)
 	for _, l := range nav {
 		rest := l.suggest()
-		sc := suggestScore(rest)
+		sc := value(rest)
 		scores = append(scores, sc)
 	}
 	sort.Ints(scores)
