@@ -60,30 +60,24 @@ func read(r io.Reader) (map[string]*node, error) {
 
 // part1 solves part1 of the puzzle
 func part1(caves map[string]*node) int {
-	visited := map[string]bool{}
-	paths := pathsFrom(caves, caves["start"], caves["end"], visited)
+	rules := &p1Rules{visited: make(map[string]bool)}
+	paths := pathsFrom(caves, caves["start"], caves["end"], rules)
 	return len(paths)
 }
 
 // pathsFrom lists all the possible paths through the cave system from
-// start to end, such that small caves (lowercase) are visited at most once.
-func pathsFrom(caves map[string]*node, start, end *node, visited map[string]bool) []string {
+// start to end, using the given cave rules to determine which caves
+// are allowed to be visited.
+func pathsFrom(caves map[string]*node, start, end *node, s caveRules) []string {
 	if start.id == end.id {
 		return []string{end.id}
 	}
 
-	canVisit := func(id string) bool {
-		if id[0] < 'a' {
-			return true
-		}
-		return !visited[id]
-	}
-
-	visited[start.id] = true
+	s.visit(start.id)
 	paths := make([]string, 0, 2)
 	for key, child := range start.out {
-		if canVisit(key) {
-			childPaths := pathsFrom(caves, child, end, copyMap(visited))
+		if s.canVisit(key) {
+			childPaths := pathsFrom(caves, child, end, s.clone())
 			for _, p := range childPaths {
 				paths = append(paths, start.id+","+p)
 			}
@@ -93,10 +87,36 @@ func pathsFrom(caves map[string]*node, start, end *node, visited map[string]bool
 	return paths
 }
 
-func copyMap(m1 map[string]bool) map[string]bool {
-	m2 := make(map[string]bool, len(m1))
-	for key, val := range m1 {
-		m2[key] = val
+// caveRules is the interface that determines the rules for visiting caves
+type caveRules interface {
+	canVisit(id string) bool
+	visit(id string)
+	clone() caveRules
+}
+
+// p1Rules defines the part 1 rules
+type p1Rules struct {
+	visited map[string]bool
+}
+
+// compile-time interface check
+var _ caveRules = new(p1Rules)
+
+func (p1 *p1Rules) canVisit(id string) bool {
+	if id[0] < 'a' {
+		return true
 	}
-	return m2
+	return !p1.visited[id]
+}
+
+func (p1 *p1Rules) visit(id string) {
+	p1.visited[id] = true
+}
+
+func (p1 *p1Rules) clone() caveRules {
+	visited := make(map[string]bool, len(p1.visited))
+	for key, val := range p1.visited {
+		visited[key] = val
+	}
+	return &p1Rules{visited}
 }

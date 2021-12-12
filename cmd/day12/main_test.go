@@ -35,11 +35,12 @@ func Test_part1(t *testing.T) {
 	r.Equal(10, got)
 }
 
-func Test_pathsFrom(t *testing.T) {
+func Test_pathsFrom1(t *testing.T) {
 	tt := []struct {
 		name       string
 		caves      string
 		start, end string
+		rules      caveRules
 		want       []string
 	}{
 		{
@@ -47,6 +48,7 @@ func Test_pathsFrom(t *testing.T) {
 			caves: "start-end",
 			start: "start",
 			end:   "end",
+			rules: &p1Rules{visited: make(map[string]bool)},
 			want:  []string{"start,end"},
 		},
 	}
@@ -58,8 +60,7 @@ func Test_pathsFrom(t *testing.T) {
 			r := require.New(t)
 			caves, err := read(strings.NewReader(tc.caves))
 			r.NoError(err)
-			visited := map[string]bool{}
-			got := pathsFrom(caves, caves[tc.start], caves[tc.end], visited)
+			got := pathsFrom(caves, caves[tc.start], caves[tc.end], tc.rules)
 			r.ElementsMatch(tc.want, got)
 		})
 	}
