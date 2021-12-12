@@ -35,7 +35,17 @@ func Test_part1(t *testing.T) {
 	r.Equal(10, got)
 }
 
-func Test_pathsFrom1(t *testing.T) {
+func Test_part2(t *testing.T) {
+	r := require.New(t)
+
+	caves, err := read(strings.NewReader(example))
+	r.NoError(err)
+
+	got := part2(caves)
+	r.Equal(36, got)
+}
+
+func Test_pathsFrom(t *testing.T) {
 	tt := []struct {
 		name       string
 		caves      string
@@ -44,12 +54,76 @@ func Test_pathsFrom1(t *testing.T) {
 		want       []string
 	}{
 		{
-			name:  "two room cave",
+			name:  "two caves, p1",
 			caves: "start-end",
 			start: "start",
 			end:   "end",
 			rules: &p1Rules{visited: make(map[string]bool)},
 			want:  []string{"start,end"},
+		},
+		{
+			name:  "two caves, p2",
+			caves: "start-end",
+			start: "start",
+			end:   "end",
+			rules: &p2Rules{visited: make(map[string]bool)},
+			want:  []string{"start,end"},
+		},
+		{
+			name: "three caves with upper, p2",
+			caves: `start-end
+start-A
+end-A
+`,
+			start: "start",
+			end:   "end",
+			rules: &p2Rules{visited: make(map[string]bool)},
+			want:  []string{"start,end", "start,A,end"},
+		},
+		{
+			name:  "example",
+			caves: example,
+			start: "start",
+			end:   "end",
+			rules: &p2Rules{visited: make(map[string]bool)},
+			want: []string{
+				"start,A,b,A,b,A,c,A,end",
+				"start,A,b,A,b,A,end",
+				"start,A,b,A,b,end",
+				"start,A,b,A,c,A,b,A,end",
+				"start,A,b,A,c,A,b,end",
+				"start,A,b,A,c,A,c,A,end",
+				"start,A,b,A,c,A,end",
+				"start,A,b,A,end",
+				"start,A,b,d,b,A,c,A,end",
+				"start,A,b,d,b,A,end",
+				"start,A,b,d,b,end",
+				"start,A,b,end",
+				"start,A,c,A,b,A,b,A,end",
+				"start,A,c,A,b,A,b,end",
+				"start,A,c,A,b,A,c,A,end",
+				"start,A,c,A,b,A,end",
+				"start,A,c,A,b,d,b,A,end",
+				"start,A,c,A,b,d,b,end",
+				"start,A,c,A,b,end",
+				"start,A,c,A,c,A,b,A,end",
+				"start,A,c,A,c,A,b,end",
+				"start,A,c,A,c,A,end",
+				"start,A,c,A,end",
+				"start,A,end",
+				"start,b,A,b,A,c,A,end",
+				"start,b,A,b,A,end",
+				"start,b,A,b,end",
+				"start,b,A,c,A,b,A,end",
+				"start,b,A,c,A,b,end",
+				"start,b,A,c,A,c,A,end",
+				"start,b,A,c,A,end",
+				"start,b,A,end",
+				"start,b,d,b,A,c,A,end",
+				"start,b,d,b,A,end",
+				"start,b,d,b,end",
+				"start,b,end",
+			},
 		},
 	}
 
