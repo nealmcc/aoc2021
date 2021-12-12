@@ -1,4 +1,3 @@
-// Package stack implements a stack of bytes.
 package stack
 
 import (
@@ -13,9 +12,9 @@ type CoordStack struct {
 	data []v.Coord
 }
 
-// Push adds the given item to the top of the stack
-func (s *CoordStack) Push(item v.Coord) {
-	s.data = append(s.data, item)
+// Length returns the number of items on the stack.
+func (s *CoordStack) Length() int {
+	return len(s.data)
 }
 
 // Peek looks at the top item on the stack, return true and a copy of the item
@@ -38,7 +37,7 @@ func (s *CoordStack) Pop() v.Coord {
 	return val
 }
 
-// Length returns the number of items on the stack.
-func (s *CoordStack) Length() int {
-	return len(s.data)
+// Push adds the given item to the top of the stack
+func (s *CoordStack) Push(x v.Coord) {
+	s.data = append(s.data, x)
 }

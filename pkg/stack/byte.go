@@ -7,9 +7,9 @@ type ByteStack struct {
 	data []byte
 }
 
-// Push adds the given item to the top of the stack
-func (s *ByteStack) Push(b byte) {
-	s.data = append(s.data, b)
+// Length returns the number of items on the stack.
+func (s *ByteStack) Length() int {
+	return len(s.data)
 }
 
 // Peek looks at the top item on the stack, return true and a copy of the item
@@ -32,7 +32,7 @@ func (s *ByteStack) Pop() byte {
 	return val
 }
 
-// Length returns the number of items on the stack.
-func (s *ByteStack) Length() int {
-	return len(s.data)
+// Push adds the given item to the top of the stack
+func (s *ByteStack) Push(x byte) {
+	s.data = append(s.data, x)
 }
