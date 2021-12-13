@@ -15,7 +15,7 @@ type Coord struct {
 	Y int
 }
 
-// Parse reads one or more input strings in the form of x,y and returns
+// ParseCoords reads one or more input strings in the form of x,y and returns
 // the corresponding coordinates.
 //
 // Example:
@@ -23,21 +23,34 @@ type Coord struct {
 func ParseCoords(in ...string) ([]Coord, error) {
 	coords := make([]Coord, 0, 2)
 	for _, pair := range in {
-		parts := strings.Split(pair, ",")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("expected 2 values, got %d", len(parts))
-		}
-		x, err := strconv.Atoi(parts[0])
+		pos, err := ParseCoord(pair)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse x coord as integer")
+			return nil, err
 		}
-		y, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse y coord as integer")
-		}
-		coords = append(coords, Coord{X: x, Y: y})
+		coords = append(coords, pos)
 	}
 	return coords, nil
+}
+
+// ParseCoord reads one input string in the form of x,y and returns
+// the corresponding coordinate.
+//
+// Example:
+//     ParseCoord("8,0") => Coord{X: 8, Y:0}
+func ParseCoord(s string) (Coord, error) {
+	parts := strings.Split(s, ",")
+	if len(parts) != 2 {
+		return Coord{}, fmt.Errorf("expected 2 values, got %d", len(parts))
+	}
+	x, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return Coord{}, errors.Wrap(err, "failed to parse x coord as integer")
+	}
+	y, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return Coord{}, errors.Wrap(err, "failed to parse y coord as integer")
+	}
+	return Coord{X: x, Y: y}, nil
 }
 
 // Add returns the vector sum of a + b.
