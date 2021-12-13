@@ -29,146 +29,165 @@ func main() {
 	fmt.Println("part2", p2)
 }
 
-type node struct {
-	id  string
-	out map[string]*node
+type network struct {
+	names []string
+	nodes []*node
 }
 
-func read(r io.Reader) (map[string]*node, error) {
+type node struct {
+	id  int
+	out []*node
+}
+
+func (net *network) getOrCreate(name string) *node {
+	for k, v := range net.names {
+		if v == name {
+			return net.nodes[k]
+		}
+	}
+	cave := &node{
+		id:  len(net.nodes),
+		out: []*node{},
+	}
+	net.names = append(net.names, name)
+	net.nodes = append(net.nodes, cave)
+
+	return cave
+}
+
+func read(r io.Reader) (*network, error) {
 	s := bufio.NewScanner(r)
 
-	caves := make(map[string]*node, 24)
-
-	getOrCreate := func(id string) *node {
-		n, ok := caves[id]
-		if !ok {
-			n = &node{id: id, out: make(map[string]*node, 2)}
-			caves[id] = n
-		}
-		return n
+	net := network{
+		names: make([]string, 0, 16),
+		nodes: make([]*node, 0, 16),
 	}
 
 	for s.Scan() {
 		parts := strings.Split(s.Text(), "-")
-		left, right := getOrCreate(parts[0]), getOrCreate(parts[1])
-		left.out[right.id] = right
-		right.out[left.id] = left
+		left, right := net.getOrCreate(parts[0]), net.getOrCreate(parts[1])
+		left.out = append(left.out, right)
+		right.out = append(right.out, left)
 	}
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
 
-	return caves, nil
+	return &net, nil
 }
 
 // part1 solves part 1 of the puzzle
-func part1(caves map[string]*node) int {
-	rules := &p1Rules{visited: make(map[string]bool)}
-	paths := pathsFrom(caves, caves["start"], caves["end"], rules)
-	return len(paths)
+func part1(caves *network) int {
+	rules := newP1(len(caves.names))
+	start := caves.getOrCreate("start")
+	end := caves.getOrCreate("end")
+	return countPaths(caves, start, end, rules)
 }
 
 // part2 solves part 2 of the puzzle
-func part2(caves map[string]*node) int {
-	rules := &p2Rules{visited: make(map[string]bool)}
-	paths := pathsFrom(caves, caves["start"], caves["end"], rules)
-	return len(paths)
+func part2(caves *network) int {
+	rules := newP2(len(caves.names))
+	start := caves.getOrCreate("start")
+	end := caves.getOrCreate("end")
+	return countPaths(caves, start, end, rules)
 }
 
-// pathsFrom lists all the possible paths through the cave system from
+// countPaths counts the distinct paths through the cave system from
 // start to end, using the given cave rules to determine which caves
 // are allowed to be visited.
-func pathsFrom(caves map[string]*node, start, end *node, state caveRules) []string {
+func countPaths(caves *network, start, end *node, state caveRules) int {
 	if start.id == end.id {
-		return []string{end.id}
+		return 1
 	}
 
-	state.visit(start.id)
-	paths := make([]string, 0, 2)
-	for key, child := range start.out {
-		if state.canVisit(key) {
-			childPaths := pathsFrom(caves, child, end, state.clone())
-			for _, p := range childPaths {
-				paths = append(paths, start.id+","+p)
-			}
+	name := caves.names[start.id]
+	state.visit(start.id, name)
+	var sum int
+	for _, child := range start.out {
+		name := caves.names[child.id]
+		if state.canVisit(child.id, name) {
+			sum += countPaths(caves, child, end, state.clone())
 		}
 	}
 
-	return paths
+	return sum
 }
 
 // caveRules is the interface that determines the rules for visiting caves
 type caveRules interface {
-	canVisit(id string) bool
-	visit(id string)
+	canVisit(id int, name string) bool
+	visit(id int, name string)
 	clone() caveRules
 }
 
 // p1Rules defines the part 1 rules
-type p1Rules struct {
-	visited map[string]bool
+type p1Rules []bool
+
+func newP1(numCaves int) *p1Rules {
+	rules := make(p1Rules, numCaves)
+	return &rules
 }
 
 // compile-time interface check
 var _ caveRules = new(p1Rules)
 
-func (p1 *p1Rules) canVisit(id string) bool {
-	if id[0] < 'a' {
+func (p1 *p1Rules) canVisit(id int, name string) bool {
+	if name[0] < 'a' {
 		return true
 	}
-	return !p1.visited[id]
+	return !(*p1)[id]
 }
 
-func (p1 *p1Rules) visit(id string) {
-	p1.visited[id] = true
+func (p1 *p1Rules) visit(id int, _ string) {
+	(*p1)[id] = true
 }
 
 func (p1 *p1Rules) clone() caveRules {
-	visited := make(map[string]bool, len(p1.visited))
-	for key, val := range p1.visited {
-		visited[key] = val
-	}
-	return &p1Rules{visited}
+	next := make(p1Rules, len(*p1))
+	copy(next, *p1)
+	return &next
 }
 
 // p2Rules defines the part 2 rules
 type p2Rules struct {
 	did2x   bool
-	visited map[string]bool
+	visited []bool
+}
+
+func newP2(numCaves int) *p2Rules {
+	return &p2Rules{
+		visited: make([]bool, numCaves),
+	}
 }
 
 // compile-time interface check
 var _ caveRules = new(p2Rules)
 
-func (p2 *p2Rules) canVisit(id string) bool {
+func (p2 *p2Rules) canVisit(id int, name string) bool {
 	switch {
-	case id[0] < 'a':
+	case name[0] < 'a':
 		return true
 	case !p2.visited[id]:
 		return true
-	case id == "start", id == "end":
+	case name == "start" || name == "end":
 		return false
-	case !p2.did2x:
-		return true
 	default:
-		return false
+		return !p2.did2x
 	}
 }
 
-func (p2 *p2Rules) visit(id string) {
-	if p2.visited[id] && id[0] >= 'a' {
+func (p2 *p2Rules) visit(id int, name string) {
+	if p2.visited[id] && name[0] >= 'a' {
 		p2.did2x = true
 	}
 	p2.visited[id] = true
 }
 
 func (p2 *p2Rules) clone() caveRules {
-	visited := make(map[string]bool, len(p2.visited))
-	for key, val := range p2.visited {
-		visited[key] = val
-	}
-	return &p2Rules{
+	next := p2Rules{
 		did2x:   p2.did2x,
-		visited: visited,
+		visited: make([]bool, len(p2.visited)),
 	}
+	copy(next.visited, p2.visited)
+	return &next
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -22,7 +23,8 @@ func Test_read(t *testing.T) {
 	caves, err := read(strings.NewReader(example))
 	r.NoError(err)
 
-	r.Equal(6, len(caves))
+	r.Equal(6, len(caves.names))
+	r.Equal(6, len(caves.nodes))
 }
 
 func Test_part1(t *testing.T) {
@@ -45,29 +47,28 @@ func Test_part2(t *testing.T) {
 	r.Equal(36, got)
 }
 
-func Test_pathsFrom(t *testing.T) {
+func Test_countPaths(t *testing.T) {
 	tt := []struct {
 		name       string
 		caves      string
 		start, end string
-		rules      caveRules
-		want       []string
+		useP1      bool
+		want       int
 	}{
 		{
 			name:  "two caves, p1",
 			caves: "start-end",
 			start: "start",
 			end:   "end",
-			rules: &p1Rules{visited: make(map[string]bool)},
-			want:  []string{"start,end"},
+			useP1: true,
+			want:  1,
 		},
 		{
 			name:  "two caves, p2",
 			caves: "start-end",
 			start: "start",
 			end:   "end",
-			rules: &p2Rules{visited: make(map[string]bool)},
-			want:  []string{"start,end"},
+			want:  1,
 		},
 		{
 			name: "three caves with upper, p2",
@@ -77,65 +78,50 @@ end-A
 `,
 			start: "start",
 			end:   "end",
-			rules: &p2Rules{visited: make(map[string]bool)},
-			want:  []string{"start,end", "start,A,end"},
+			want:  2,
 		},
 		{
 			name:  "example",
 			caves: example,
 			start: "start",
 			end:   "end",
-			rules: &p2Rules{visited: make(map[string]bool)},
-			want: []string{
-				"start,A,b,A,b,A,c,A,end",
-				"start,A,b,A,b,A,end",
-				"start,A,b,A,b,end",
-				"start,A,b,A,c,A,b,A,end",
-				"start,A,b,A,c,A,b,end",
-				"start,A,b,A,c,A,c,A,end",
-				"start,A,b,A,c,A,end",
-				"start,A,b,A,end",
-				"start,A,b,d,b,A,c,A,end",
-				"start,A,b,d,b,A,end",
-				"start,A,b,d,b,end",
-				"start,A,b,end",
-				"start,A,c,A,b,A,b,A,end",
-				"start,A,c,A,b,A,b,end",
-				"start,A,c,A,b,A,c,A,end",
-				"start,A,c,A,b,A,end",
-				"start,A,c,A,b,d,b,A,end",
-				"start,A,c,A,b,d,b,end",
-				"start,A,c,A,b,end",
-				"start,A,c,A,c,A,b,A,end",
-				"start,A,c,A,c,A,b,end",
-				"start,A,c,A,c,A,end",
-				"start,A,c,A,end",
-				"start,A,end",
-				"start,b,A,b,A,c,A,end",
-				"start,b,A,b,A,end",
-				"start,b,A,b,end",
-				"start,b,A,c,A,b,A,end",
-				"start,b,A,c,A,b,end",
-				"start,b,A,c,A,c,A,end",
-				"start,b,A,c,A,end",
-				"start,b,A,end",
-				"start,b,d,b,A,c,A,end",
-				"start,b,d,b,A,end",
-				"start,b,d,b,end",
-				"start,b,end",
-			},
+			want:  36,
 		},
 	}
 
 	for _, tc := range tt {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 			r := require.New(t)
 			caves, err := read(strings.NewReader(tc.caves))
 			r.NoError(err)
-			got := pathsFrom(caves, caves[tc.start], caves[tc.end], tc.rules)
-			r.ElementsMatch(tc.want, got)
+			var rules caveRules
+			if tc.useP1 {
+				rules = newP1(len(caves.names))
+			} else {
+				rules = newP2(len(caves.names))
+			}
+
+			start := caves.getOrCreate(tc.start)
+			end := caves.getOrCreate(tc.end)
+
+			got := countPaths(caves, start, end, rules)
+			r.Equal(tc.want, got)
 		})
+	}
+}
+
+func Benchmark_countPaths(b *testing.B) {
+	in, _ := os.Open("input.txt")
+	defer in.Close()
+
+	caves, _ := read(in)
+
+	for n := 0; n < b.N; n++ {
+		rules := newP2(len(caves.names))
+		start := caves.getOrCreate("start")
+		end := caves.getOrCreate("end")
+		countPaths(caves, start, end, rules)
 	}
 }
