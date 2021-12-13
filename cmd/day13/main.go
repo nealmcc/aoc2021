@@ -21,16 +21,22 @@ func main() {
 	}
 	defer in.Close()
 
-	dots, folds, err := read(in)
+	paper, folds, err := read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	p1 := part1(dots, folds[0])
-	fmt.Println("part1", p1)
+	paper.fold(folds[0])
+	fmt.Println("part1", len(paper))
+
+	for _, fn := range folds[1:] {
+		paper.fold(fn)
+	}
+	fmt.Println("part2")
+	fmt.Printf("%v", paper)
 }
 
-func read(r io.Reader) (map[v.Coord]bool, []fold, error) {
+func read(r io.Reader) (paper, []foldFunc, error) {
 	s := bufio.NewScanner(r)
 
 	dots, err := parseGrid(s)
@@ -46,7 +52,7 @@ func read(r io.Reader) (map[v.Coord]bool, []fold, error) {
 	return dots, folds, nil
 }
 
-func parseGrid(s *bufio.Scanner) (map[v.Coord]bool, error) {
+func parseGrid(s *bufio.Scanner) (paper, error) {
 	grid := make(map[v.Coord]bool)
 	for s.Scan() {
 		line := s.Text()
@@ -65,8 +71,8 @@ func parseGrid(s *bufio.Scanner) (map[v.Coord]bool, error) {
 	return grid, nil
 }
 
-func parseFolds(s *bufio.Scanner) ([]fold, error) {
-	folds := make([]fold, 0, 8)
+func parseFolds(s *bufio.Scanner) ([]foldFunc, error) {
+	folds := make([]foldFunc, 0, 8)
 	for s.Scan() {
 		line := strings.TrimPrefix(s.Text(), "fold along ")
 		parts := strings.Split(line, "=")
@@ -92,19 +98,50 @@ func parseFolds(s *bufio.Scanner) ([]fold, error) {
 	return folds, nil
 }
 
-// part1 solves part 1 of the puzzle
-func part1(dots map[v.Coord]bool, fn fold) int {
-	for dot := range dots {
-		delete(dots, dot)
+type paper map[v.Coord]bool
+
+// compile-time interface check
+var _ fmt.Formatter = paper{}
+
+func (p *paper) fold(fn foldFunc) {
+	for dot := range *p {
+		delete(*p, dot)
 		dot := fn(dot)
-		dots[dot] = true
+		(*p)[dot] = true
 	}
-	return len(dots)
 }
 
-type fold func(v.Coord) v.Coord
+func (p paper) Format(f fmt.State, verb rune) {
+	var max v.Coord
+	for dot := range p {
+		if dot.X > max.X {
+			max.X = dot.X
+		}
+		if dot.Y > max.Y {
+			max.Y = dot.Y
+		}
+	}
 
-func foldLeft(x int) fold {
+	width, height := max.X+1, max.Y+1
+
+	code := make([][]byte, height)
+	for y := 0; y < height; y++ {
+		code[y] = []byte(strings.Repeat(" ", width))
+	}
+
+	for dot := range p {
+		code[dot.Y][dot.X] = '#'
+	}
+
+	for _, row := range code {
+		f.Write(row)
+		f.Write([]byte{'\n'})
+	}
+}
+
+type foldFunc func(v.Coord) v.Coord
+
+func foldLeft(x int) foldFunc {
 	return func(pos v.Coord) v.Coord {
 		if pos.X <= x {
 			return pos
@@ -114,7 +151,7 @@ func foldLeft(x int) fold {
 	}
 }
 
-func foldUp(y int) fold {
+func foldUp(y int) foldFunc {
 	return func(pos v.Coord) v.Coord {
 		if pos.Y <= y {
 			return pos

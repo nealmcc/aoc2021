@@ -44,9 +44,9 @@ func Test_read(t *testing.T) {
 func Test_part1(t *testing.T) {
 	r, a := require.New(t), assert.New(t)
 
-	dots, folds, err := read(strings.NewReader(example))
+	paper, folds, err := read(strings.NewReader(example))
 	r.NoError(err)
 
-	got := part1(dots, folds[0])
-	a.Equal(17, got)
+	paper.fold(folds[0])
+	a.Equal(17, len(paper))
 }
