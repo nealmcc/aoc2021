@@ -95,21 +95,28 @@ func part2(caves *network) int {
 // countPaths counts the distinct paths through the cave system from
 // start to end, using the given cave rules to determine which caves
 // are allowed to be visited.
-func countPaths(caves *network, start, end *node, state caveRules) int {
-	if start.id == end.id {
-		return 1
-	}
+func countPaths(caves *network, start, end *node, rules caveRules) int {
+	stack := Stack{}
+	stack.Push(state{cave: start, rules: rules})
 
-	name := caves.names[start.id]
-	state.visit(start.id, name)
 	var sum int
-	for _, child := range start.out {
-		name := caves.names[child.id]
-		if state.canVisit(child.id, name) {
-			sum += countPaths(caves, child, end, state.clone())
+	for stack.Length() > 0 {
+		x := stack.Pop()
+		cave, rules := x.cave, x.rules
+		rules.visit(cave.id, caves.names[cave.id])
+		for _, child := range cave.out {
+			if child.id == end.id {
+				sum++
+				continue
+			}
+			if rules.canVisit(child.id, caves.names[child.id]) {
+				stack.Push(state{
+					cave:  child,
+					rules: rules.clone(),
+				})
+			}
 		}
 	}
-
 	return sum
 }
 
