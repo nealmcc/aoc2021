@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 )
 
 // main solves the both part 1 and part 2, reading from input.txt
@@ -17,69 +18,92 @@ func main() {
 	}
 	defer in.Close()
 
-	polymer, rules, err := read(in)
+	start := time.Now()
+
+	polymer, err := read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	p1 := part1(polymer, rules)
-	fmt.Println("part1", p1)
+	for i := 0; i < 10; i++ {
+		polymer.replicate()
+	}
+	p1 := polymer.magicNumber()
+
+	for i := 0; i < 30; i++ {
+		polymer.replicate()
+	}
+	p2 := polymer.magicNumber()
+	end := time.Now()
+
+	fmt.Println("part1:", p1)
+	fmt.Println("part2:", p2)
+	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
 // read assumes that the rules lines are all well-formed
-func read(r io.Reader) (*compound, []rule, error) {
+func read(r io.Reader) (*compound, error) {
 	s := bufio.NewScanner(r)
 
 	if !s.Scan() {
-		return nil, nil, errors.New("empty input")
+		return nil, errors.New("empty input")
 	}
 	if err := s.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	polymer, err := newCompound(s.Text())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// skip blank line
 	s.Scan()
 
-	rules := make([]rule, 0, 16)
+	polymer.rules = make([]rule, 0, 100)
 	for s.Scan() {
 		row := s.Bytes()
-		rules = append(rules, rule{
-			left:  row[0],
-			right: row[1],
-			mid:   row[6],
+		polymer.rules = append(polymer.rules, rule{
+			left:  row[0] - 'A',
+			right: row[1] - 'A',
+			mid:   row[6] - 'A',
 		})
 	}
 	if err := s.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return polymer, rules, nil
+	return polymer, nil
 }
 
 type compound struct {
-	pairs    map[pair]int
-	elements map[byte]int
+	pairs    [26][26]int
+	elements [26]int
+	rules    []rule
 }
 
+// rule defines the element that will be inserted between a pair of elements.
+type rule struct {
+	left, right byte
+	mid         byte
+}
+
+// newCompound creates a new polymer using the given starting elements.
+// The compound will not have any rules - those need to be added separately.
 func newCompound(in string) (*compound, error) {
 	if len(in) < 2 {
 		return nil, errors.New("a compound must have at least two elements")
 	}
 
 	c := compound{
-		pairs:    make(map[pair]int, 4),
-		elements: make(map[byte]int, 4),
+		pairs:    [26][26]int{},
+		elements: [26]int{},
 	}
-	curr := in[0]
+	curr := in[0] - 'A'
 	c.elements[curr] = 1
 	for i := 1; i < len(in); i++ {
-		next := in[i]
-		c.pairs[pair{left: curr, right: next}] += 1
+		next := in[i] - 'A'
+		c.pairs[curr][next] += 1
 		curr = next
 		c.elements[curr] += 1
 	}
@@ -87,28 +111,41 @@ func newCompound(in string) (*compound, error) {
 	return &c, nil
 }
 
-type rule struct {
-	left, right byte
-	mid         byte
-}
-
-type pair struct {
-	left, right byte
-}
-
-// part1 replicates the template 10 times, following the given rules, and then
-// returns the difference between the quantity of hte most common element,
-// and the least common element in the resulting polymer.
-func part1(c *compound, rules []rule) int {
-	for i := 0; i < 10; i++ {
-		c.replicate(rules)
+// replicate performs one step of growth for the polymer
+func (c *compound) replicate() {
+	type op struct {
+		l, r byte
+		n    int
 	}
 
-	anykey := getAnyKey(c.elements)
-	min, max := c.elements[anykey], c.elements[anykey]
+	remove := make([]op, 0, 100)
+	add := make([]op, 0, 200)
+
+	for _, r := range c.rules {
+		count := c.pairs[r.left][r.right]
+		remove = append(remove, op{l: r.left, r: r.right, n: count})
+		add = append(add, op{l: r.left, r: r.mid, n: count})
+		add = append(add, op{l: r.mid, r: r.right, n: count})
+
+		c.elements[r.mid] += count
+	}
+
+	for _, op := range remove {
+		c.pairs[op.l][op.r] -= op.n
+	}
+
+	for _, op := range add {
+		c.pairs[op.l][op.r] += op.n
+	}
+}
+
+// magicNumber is the difference between the quantity of the most common
+// element and the least common element in the compound.
+func (c *compound) magicNumber() int {
+	min, max := 1<<63-1, 0
 
 	for _, count := range c.elements {
-		if count < min {
+		if count > 0 && count < min {
 			min = count
 		}
 		if count > max {
@@ -116,43 +153,4 @@ func part1(c *compound, rules []rule) int {
 		}
 	}
 	return max - min
-}
-
-// getAnyKey returns any key from the map - we don't care which one.
-func getAnyKey(m map[byte]int) byte {
-	for k := range m {
-		return k
-	}
-	return 0
-}
-
-func (c *compound) replicate(rules []rule) {
-	type op struct {
-		p     pair
-		count int
-	}
-
-	removals := make([]op, 0, 16)
-	insertions := make([]op, 0, 16)
-
-	for _, r := range rules {
-		remove := pair{left: r.left, right: r.right}
-		count := c.pairs[remove]
-		removals = append(removals, op{p: remove, count: count})
-
-		add1 := pair{left: r.left, right: r.mid}
-		add2 := pair{left: r.mid, right: r.right}
-		insertions = append(insertions, op{p: add1, count: count})
-		insertions = append(insertions, op{p: add2, count: count})
-
-		c.elements[r.mid] += count
-	}
-
-	for _, r := range removals {
-		c.pairs[r.p] -= r.count
-	}
-
-	for _, r := range insertions {
-		c.pairs[r.p] += r.count
-	}
 }

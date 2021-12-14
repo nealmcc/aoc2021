@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -28,34 +29,39 @@ CC -> N
 CN -> C
 `
 
-func Test_read(t *testing.T) {
-	r, a := require.New(t), assert.New(t)
-
-	polymer, rules, err := read(strings.NewReader(example))
-	r.NoError(err)
-
-	want := compound{
-		pairs: map[pair]int{
-			{'N', 'N'}: 1,
-			{'N', 'C'}: 1,
-			{'C', 'B'}: 1,
-		},
-		elements: map[byte]int{
-			'N': 2,
-			'C': 1,
-			'B': 1,
-		},
-	}
-
-	a.Equal(want, *polymer)
-	a.Equal(16, len(rules))
-}
-
 func Test_part1(t *testing.T) {
 	r, a := require.New(t), assert.New(t)
 
-	template, rules, err := read(strings.NewReader(example))
+	molecule, err := read(strings.NewReader(example))
 	r.NoError(err)
 
-	a.Equal(1588, part1(template, rules))
+	for i := 0; i < 10; i++ {
+		molecule.replicate()
+	}
+
+	a.Equal(1588, molecule.magicNumber())
+}
+
+// prevent the compiler from optimising away the magicNumber() call
+var n int
+
+func Benchmark_part2(b *testing.B) {
+	in, err := os.Open("input.txt")
+	if err != nil {
+		b.Log(err)
+		b.FailNow()
+	}
+	defer in.Close()
+	polymer, err := read(in)
+	if err != nil {
+		b.Log(err)
+		b.FailNow()
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 40; j++ {
+			polymer.replicate()
+		}
+		n = polymer.magicNumber()
+	}
 }
