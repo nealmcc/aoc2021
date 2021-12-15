@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nealmcc/aoc2021/pkg/vector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,8 +26,5 @@ func Test_part1(t *testing.T) {
 	cave, err := read(strings.NewReader(example))
 	r.NoError(err)
 
-	from := vector.Coord{X: 0, Y: 0}
-	to := vector.Coord{X: 9, Y: 9}
-
-	a.Equal(40, shortestPath(cave, from, to))
+	a.Equal(40, part1(cave))
 }
