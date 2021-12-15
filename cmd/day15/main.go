@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/nealmcc/aoc2021/pkg/queue"
-	v "github.com/nealmcc/aoc2021/pkg/vector"
+	"github.com/nealmcc/aoc2021/pkg/vector"
 )
 
 // main solves the both part 1 and part 2, reading from input.txt
@@ -30,11 +30,12 @@ func main() {
 	}
 
 	p1 := part1(cave)
+	p2 := part2(cave)
 
 	end := time.Now()
 
 	fmt.Println("part1:", p1)
-	// fmt.Println("part2:", p2)
+	fmt.Println("part2:", p2)
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
@@ -53,7 +54,7 @@ func read(r io.Reader) (cavern, error) {
 	cave := newCavern(len(row))
 
 	setRisk := func(x, y int, b byte) {
-		cave.risk[v.Coord{X: x, Y: y}] = int(b - '0')
+		cave.risk[vector.Coord{X: x, Y: y}] = int(b - '0')
 	}
 
 	for x := 0; x < len(row); x++ {
@@ -78,23 +79,52 @@ func read(r io.Reader) (cavern, error) {
 // Each position in the cave has a variable risk level from 0 to 9.
 type cavern struct {
 	width int
-	risk  map[v.Coord]int
+	risk  map[vector.Coord]int
 }
 
 func newCavern(width int) cavern {
 	return cavern{
 		width: width,
-		risk:  make(map[v.Coord]int, width*width),
+		risk:  make(map[vector.Coord]int, width*width),
 	}
 }
 
 func part1(c cavern) int {
 	var (
-		from = v.Coord{X: 0, Y: 0}
-		to   = v.Coord{X: c.width - 1, Y: c.width - 1}
+		from = vector.Coord{X: 0, Y: 0}
+		to   = vector.Coord{X: c.width - 1, Y: c.width - 1}
 	)
 	cost, _ := c.shortestPath(from)
 	return cost[to]
+}
+
+func part2(c cavern) int {
+	c.scale(5)
+	return part1(c)
+}
+
+// scale increases the size of the cavern by n in both the x and y directions.
+// Adjusts the risk factor of each position according to the rules in part 2.
+func (c *cavern) scale(factor int) {
+	template := make(map[vector.Coord]int, len(c.risk))
+	for k, v := range c.risk {
+		template[k] = v
+	}
+
+	limit := c.width * factor
+	for x := 0; x < limit; x++ {
+		for y := 0; y < limit; y++ {
+			k1 := vector.Coord{X: x % c.width, Y: y % c.width}
+			k2 := vector.Coord{X: x, Y: y}
+			risk := template[k1] + tileScore(k2, c.width)
+			for risk >= 10 {
+				risk -= 9
+			}
+			c.risk[k2] = risk
+		}
+	}
+
+	c.width *= factor
 }
 
 // shortestPath computes the shortest distance and route from start to all
@@ -104,9 +134,9 @@ func part1(c cavern) int {
 // dist holds the minimal distance from the start to the given coordinate.
 //
 // prev holds the predecessor of each coordinate, when visiting it from the start.
-func (c cavern) shortestPath(start v.Coord) (cost map[v.Coord]int, prev map[v.Coord]v.Coord) {
-	cost = make(map[v.Coord]int, len(c.risk))
-	prev = make(map[v.Coord]v.Coord, len(c.risk))
+func (c cavern) shortestPath(start vector.Coord) (cost map[vector.Coord]int, prev map[vector.Coord]vector.Coord) {
+	cost = make(map[vector.Coord]int, len(c.risk))
+	prev = make(map[vector.Coord]vector.Coord, len(c.risk))
 	cost[start] = 0
 
 	// push each node on the graph into the queue, with an initial distance
@@ -154,11 +184,36 @@ func (c cavern) shortestPath(start v.Coord) (cost map[v.Coord]int, prev map[v.Co
 // neighbours returns a slice of all positions within the cavern that
 // are adjacent to p.
 // Squares are only adjacent vertically and horizontally - not diagonally.
-func (c cavern) neighbours(p v.Coord) []v.Coord {
-	return []v.Coord{
+func (c cavern) neighbours(p vector.Coord) []vector.Coord {
+	return []vector.Coord{
 		{X: p.X, Y: p.Y - 1},
 		{X: p.X, Y: p.Y + 1},
 		{X: p.X - 1, Y: p.Y},
 		{X: p.X + 1, Y: p.Y},
 	}
+}
+
+func (c cavern) Format(f fmt.State, verb rune) {
+	// create a buffer to write values into
+	display := make([][]byte, c.width)
+	for i := 0; i < c.width; i++ {
+		display[i] = make([]byte, c.width)
+	}
+
+	// write risk values into the buffer
+	for pos, risk := range c.risk {
+		display[pos.Y][pos.X] = '0' + byte(risk)
+	}
+
+	// print the buffer
+	for _, row := range display {
+		f.Write(row)
+		f.Write([]byte{'\n'})
+	}
+}
+
+// tileScore finds the incremental amount that a given position's risk
+// needs to be adjusted by for part 2
+func tileScore(pos vector.Coord, width int) int {
+	return pos.X/width + pos.Y/width
 }
