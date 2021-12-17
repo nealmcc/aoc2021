@@ -55,27 +55,27 @@ func part2() int {
 
 func findLimits() (int, int, int, int) {
 	// largest single step:
-	dxMax := target.right + 1
+	dxMax := target.right
 	dyMin := target.bottom
 
 	// largest upward velocity (as established in part 1):
 	dyMax := 109
 
-	// When the probe barely reaches the left edge of the target, its
-	// x velocity must be 0.  In this case, dx = 0
-	// so, when  sum(dx) from dx = 0 to dx = target.leftEdge
-	// left edge of target.
-
 	// let distX be the shortest horizontal distance that the probe must travel:
 	distX := target.left
-	// let w be the smallest x velocity that will travel this distance
+
+	// let dxMin be the smallest starting x velocity such that the probe
+	// barely reaches the left edge of the target.
+	// In this scenario, the probe's ending x velocity must be 0, and it decreased
+	// by 1 for every step it took.
+	// Therefore:
 	// sum(dx)[from dx = 0 to dx = dxMin] = distX
 	// (dxMin)(dxMin+1)/2 = distX
 	// dxMin * dxMin + dxMin -2*distX = 0
-	// Aw^2 + Bw + C = 0
+	// if w == dxMin, then Aw^2 + Bw + C = 0
 	a, b, c := 1, 1, -2*distX
-	neg4ac := b*b - 4*a*c
-	dxMin := int(-1.0*float64(b) + math.Sqrt(float64(neg4ac))/2.0)
+	b24ac := b*b - 4*a*c
+	dxMin := int(-1.0*float64(b) + math.Sqrt(float64(b24ac))/2.0)
 
 	if dxMin*(dxMin+1)/2 < distX {
 		dxMin++
@@ -87,7 +87,8 @@ func findLimits() (int, int, int, int) {
 func reachesTarget(v vector.Coord) bool {
 	pos := vector.Coord{X: 0, Y: 0}
 	for {
-		if pos.X >= target.left && pos.X <= target.right && pos.Y >= target.bottom && pos.Y <= target.top {
+		if pos.X >= target.left && pos.X <= target.right &&
+			pos.Y >= target.bottom && pos.Y <= target.top {
 			return true
 		}
 
