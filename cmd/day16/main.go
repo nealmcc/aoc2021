@@ -33,28 +33,22 @@ func main() {
 }
 
 // read a packet from the given reader
-func read(r io.Reader) (Packet, error) {
+func read(r io.Reader) (*Packet, error) {
 	buf := bytes.Buffer{}
 	_, err := buf.ReadFrom(r)
 	if err != nil {
 		return nil, err
 	}
 
-	p := new(rawPacket)
+	p := new(Packet)
 	err = p.UnmarshalText(buf.Bytes())
 	return p, err
 }
 
-func part1(p Packet) int {
+func part1(p *Packet) int {
 	sum := p.Version()
 	for _, child := range p.Children() {
 		sum += child.Version()
 	}
 	return sum
-}
-
-type Packet interface {
-	Version() int
-	Value() int
-	Children() []Packet
 }

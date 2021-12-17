@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRawPacket_Unmarshal(t *testing.T) {
+func TestPacket_Unmarshal(t *testing.T) {
 	for i, tc := range _examples {
 		tc := tc
 		t.Run(fmt.Sprintf("example %d", i), func(t *testing.T) {
@@ -23,16 +23,16 @@ func TestRawPacket_Unmarshal(t *testing.T) {
 	}
 }
 
-func TestRawPacket_Version(t *testing.T) {
-	p := new(rawPacket)
+func TestPacket_Version(t *testing.T) {
+	p := new(Packet)
 	err := p.UnmarshalText([]byte("D2FE28"))
 	require.NoError(t, err)
 
 	assert.Equal(t, 6, p.Version())
 }
 
-func TestRawPacket_Value(t *testing.T) {
-	p := new(rawPacket)
+func TestPacket_Value(t *testing.T) {
+	p := new(Packet)
 	err := p.UnmarshalText([]byte("D2FE28"))
 	require.NoError(t, err)
 
@@ -40,7 +40,48 @@ func TestRawPacket_Value(t *testing.T) {
 	assert.Equal(t, 2021, p.Value())
 }
 
-func TestRawPacket_bits(t *testing.T) {
+func TestPacket_BitLength(t *testing.T) {
+	tt := []struct {
+		name       string
+		in         string
+		wantValue  int
+		wantLength int
+	}{
+		{
+			name:       "literal value 1 has 11 bits",
+			in:         "5020",
+			wantValue:  1,
+			wantLength: 11,
+		},
+		{
+			name:       "literal value 2 has 11 bits",
+			in:         "9040",
+			wantValue:  2,
+			wantLength: 11,
+		},
+		{
+			name:       "literal value 3 has 11 bits",
+			in:         "9060",
+			wantValue:  3,
+			wantLength: 11,
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			p := new(Packet)
+			err := p.UnmarshalText([]byte(tc.in))
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantValue, p.Value())
+			assert.Equal(t, tc.wantLength, p.bitLength())
+		})
+	}
+}
+
+func TestPacket_eightBits(t *testing.T) {
 	tt := []struct {
 		name     string
 		in       string
@@ -91,11 +132,11 @@ func TestRawPacket_bits(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r, a := require.New(t), assert.New(t)
 
-			p := new(rawPacket)
+			p := new(Packet)
 			err := p.UnmarshalText([]byte(tc.in))
 			r.NoError(err)
 
-			got, err := p.bits(tc.bitIndex)
+			got, err := p.eightBits(tc.bitIndex)
 			a.Equal(tc.want, got)
 			a.Equal(tc.wantErr, err)
 		})
