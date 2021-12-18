@@ -101,30 +101,32 @@ func (p Packet) Value() (val int, err error) {
 
 	switch pt {
 	case _literal:
-		const (
-			mask_val      = 0x0F // read the lower 4 bits of the value
-			mask_continue = 0x10 // check the 5th least significant bit to see if we'll continue
-		)
+		val, _, err := p.literal()
+		return val, err
 
-		var sum int
-		index := _valueIx
-		for {
-			data, err := p.nBits(index, _valueChunk)
-			if err != nil {
-				return 0, err
-			}
+	case _sum:
+		return p.sum()
 
-			sum = sum<<4 + int(data&mask_val)
+	case _product:
+		return p.product()
 
-			index += int(_valueChunk)
-			if data&mask_continue == 0 {
-				break
-			}
-		}
-		return sum, nil
+	case _minimum:
+		return p.min()
+
+	case _maximum:
+		return p.max()
+
+	case _greaterThan:
+		return p.greater()
+
+	case _lessThan:
+		return p.less()
+
+	case _equal:
+		return p.equal()
 
 	default:
-		return 0, errors.New("operator values not implemented")
+		return 0, errors.New("operator not implemented")
 	}
 }
 

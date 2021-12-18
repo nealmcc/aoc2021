@@ -38,9 +38,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	p2, err := packet.Value()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	end := time.Now()
 
 	fmt.Println("part1:", p1)
+	fmt.Println("part2:", p2)
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 

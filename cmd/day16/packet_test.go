@@ -13,7 +13,19 @@ import (
 )
 
 func TestPacket_Unmarshal(t *testing.T) {
-	for i, tc := range _examples {
+	tt := []struct {
+		hex        string
+		versionSum int
+	}{
+		{"D2FE28", 6},
+		{"38006F45291200", 9},
+		{"8A004A801A8002F478", 16},
+		{"620080001611562C8802118E34", 12},
+		{"C0015000016115A2E0802F182340", 23},
+		{"A0016C880162017C3686B18A3D4780", 31},
+	}
+
+	for i, tc := range tt {
 		tc := tc
 		t.Run(fmt.Sprintf("example %d", i), func(t *testing.T) {
 			r, a := require.New(t), assert.New(t)
