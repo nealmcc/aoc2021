@@ -84,11 +84,6 @@ func TestPacket_bitLength(t *testing.T) {
 			testPacket("8e34", 3),
 			11,
 		},
-		{
-			"investigating",
-			testPacket("7c3686b18a3d4780", 0),
-			0,
-		},
 	}
 
 	for _, tc := range tt {

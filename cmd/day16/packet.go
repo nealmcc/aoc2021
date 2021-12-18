@@ -72,7 +72,12 @@ const (
 )
 
 // Version number for this packet.
-func (p Packet) Version() (int, error) {
+func (p Packet) Version() (ver int, err error) {
+	p.Debugw("enter p.Version()", "p", p, "firstBit", p.firstBit)
+	defer func() {
+		p.Debugw(" exit p.Version()", "ver", ver, "err", err)
+	}()
+
 	const bitIndex = 0
 	bits, err := p.nBits(bitIndex, _versionBits)
 	if err != nil {
@@ -83,7 +88,12 @@ func (p Packet) Version() (int, error) {
 }
 
 // Value returns the cumulative value of this packet including its children.
-func (p Packet) Value() (int, error) {
+func (p Packet) Value() (val int, err error) {
+	p.Debugw("enter p.Value()", "p", p, "firstBit", p.firstBit)
+	defer func() {
+		p.Debugw(" exit p.Value()", "val", val, "err", err)
+	}()
+
 	pt, err := p.packetType()
 	if err != nil {
 		return 0, err
@@ -163,10 +173,14 @@ func (p Packet) Children() ([]Packet, error) {
 	return p.nSiblingsAt(next, inner)
 }
 
-func (p Packet) nSiblingsAt(bitIndex, n int) ([]Packet, error) {
+func (p Packet) nSiblingsAt(bitIndex, n int) (children []Packet, err error) {
 	p.Debugw("enter p.nSiblingsAt()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex, "n", n)
-	children := make([]Packet, 0, 3)
+	defer func() {
+		p.Debugw(" exit p.nSiblingsAt()", "len(children)", len(children), "err", err)
+	}()
+
+	children = make([]Packet, 0, 3)
 	for i := 0; i < n; i++ {
 		child := p.childFrom(bitIndex)
 		p.Debugw("\tchild found", "bitIndex", bitIndex,
@@ -178,7 +192,7 @@ func (p Packet) nSiblingsAt(bitIndex, n int) ([]Packet, error) {
 		}
 		bitIndex += length
 	}
-	p.Debugw(" exit p.nSiblingsAt()", "len(children)", len(children))
+
 	return children, nil
 }
 
@@ -226,7 +240,12 @@ const (
 )
 
 // packetType returns the type of packet that this is (value or an operator)
-func (p Packet) packetType() (packetType, error) {
+func (p Packet) packetType() (pt packetType, err error) {
+	p.Debugw("enter p.packetType()", "p", p, "firstBit", p.firstBit)
+	defer func() {
+		p.Debugw(" exit p.packetType()", "pt", pt, "err", err)
+	}()
+
 	const bitIndex = 3
 
 	bits, err := p.nBits(bitIndex, _packetTypeBits)
@@ -241,7 +260,9 @@ func (p Packet) packetType() (packetType, error) {
 // excluding the initial bit offset if any, and also excluding any trailing bits.
 func (p Packet) bitLength() (length int, err error) {
 	p.Debugw("enter p.bitLength()", "p", p, "firstBit", p.firstBit)
-	defer p.Debugw(" exit p.bitLength()", "length", length, "err", err)
+	defer func() {
+		p.Debugw(" exit p.bitLength()", "length", length, "err", err)
+	}()
 
 	pt, err := p.packetType()
 	if err != nil {
@@ -280,7 +301,7 @@ func (p Packet) bitLength() (length int, err error) {
 		sum += l
 	}
 
-	return next - p.firstBit, nil
+	return next + sum, nil
 }
 
 // literal returns the integer value of this Packet and the number of bits
@@ -323,22 +344,12 @@ const (
 // innerSize returns the size type of the inner portion of this container packet,
 // which could have two different meanings. Either it is the sum total
 // of the bit lengths of its children, or it is the number of packets contained
-// inside this one.  InnerSize() also returns the next bit index to read child
-// bits from.
-func (p Packet) innerSize() (st sizeTypeID, size, next int, err error) {
+// inside this one.  InnerSize() also returns the next index to read child bits from.
+func (p Packet) innerSize() (st sizeTypeID, size int, next int, err error) {
 	p.Debugw("enter p.innerSize()", "p", p, "firstBit", p.firstBit)
 	defer func() {
 		p.Debugw(" exit p.innerSize()", "st", st, "size", size, "next", next, "err", err)
 	}()
-
-	pt, err := p.packetType()
-	if err != nil {
-		return 0, 0, 0, err
-	}
-
-	if pt == _literalValue {
-		return 0, 0, 0, errors.New("invalid operation")
-	}
 
 	b, err := p.nBits(_sizeTypeIx, _sizeTypeBits)
 	if err != nil {
@@ -385,9 +396,9 @@ func (p Packet) innerSize() (st sizeTypeID, size, next int, err error) {
 // and the other bits will be zero'd out.  Returns io.EOF if the underlying
 // buffer is not long enough to read these bits.
 func (p Packet) nBits(bitIndex fieldIndex, numBits fieldWidth) (res byte, err error) {
+	// uncomment for more verbose tracing
 	p.Debugw("enter p.nBits()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex, "numBits", numBits)
-
 	defer func() {
 		p.Debugw(" exit p.nBits()", "res", res, "err", err)
 	}()
@@ -417,9 +428,10 @@ func (p Packet) nBits(bitIndex fieldIndex, numBits fieldWidth) (res byte, err er
 	right >>= (8 - rem)
 	data := (left | right) >> (8 - numBits)
 
-	if p.log != nil {
-		p.log.Debugf("shifted and masked 8 bits: %0.8b aka %0.2x", data, data)
-	}
+	// uncomment for more verbose tracing
+	// if p.log != nil {
+	// 	p.log.Debugf("shifted and masked 8 bits: %0.8b aka %0.2x", data, data)
+	// }
 
 	return data, nil
 }
@@ -429,7 +441,9 @@ func (p Packet) nBits(bitIndex fieldIndex, numBits fieldWidth) (res byte, err er
 func (p Packet) childFrom(bitIndex int) (child Packet) {
 	p.Debugw("enter p.childFrom()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex)
-	defer p.Debugw(" exit p.childFrom()", "child", child, "firstBit", child.firstBit)
+	defer func() {
+		p.Debugw(" exit p.childFrom()", "child", child, "firstBit", child.firstBit)
+	}()
 
 	byteIndex := (p.firstBit + bitIndex) / 8
 	firstBit := (p.firstBit + bitIndex) % 8

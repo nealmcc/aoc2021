@@ -33,7 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p1, err := part1(*packet, log)
+	p1, err := part1(*packet, nil /* optional logger for debugging */)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +59,9 @@ func read(r io.Reader) (*Packet, error) {
 
 func part1(p Packet, log *zap.SugaredLogger) (int, error) {
 	s := PacketStack{}
-	p.SetLogger(log)
+	if log != nil {
+		p.SetLogger(log)
+	}
 	s.Push(p)
 
 	sum := 0
