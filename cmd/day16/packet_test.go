@@ -46,7 +46,7 @@ func TestPacket_Value(t *testing.T) {
 	pt, err := p.packetType()
 	r.NoError(err)
 
-	assert.Equal(t, _literalValue, pt)
+	assert.Equal(t, _literal, pt)
 
 	val, err := p.Value()
 	r.NoError(err)

@@ -100,7 +100,7 @@ func (p Packet) Value() (val int, err error) {
 	}
 
 	switch pt {
-	case _literalValue:
+	case _literal:
 		const (
 			mask_val      = 0x0F // read the lower 4 bits of the value
 			mask_continue = 0x10 // check the 5th least significant bit to see if we'll continue
@@ -130,19 +130,19 @@ func (p Packet) Value() (val int, err error) {
 
 // Children returns a slice of the immediate children of this packet.
 // Returns an empty slice if this packet has no children.
-func (p Packet) Children() ([]Packet, error) {
+func (p Packet) Children() (children []Packet, err error) {
 	p.Debugw("enter p.Children()", "p", p, "firstBit", p.firstBit)
+	defer func() {
+		p.Debugw(" exit p.Children()", "len(children)", len(children), "err", err)
+	}()
+
 	pt, err := p.packetType()
 	if err != nil {
 		return nil, err
 	}
-	if pt == _literalValue {
-		p.Debugw("value packet", "pt", pt)
+	if pt == _literal {
 		return nil, nil
 	}
-
-	p.Debugw("operator packet", "pt", pt)
-	children := make([]Packet, 0, 2)
 
 	st, inner, next, err := p.innerSize()
 	if err != nil {
@@ -150,29 +150,13 @@ func (p Packet) Children() ([]Packet, error) {
 	}
 
 	if st == _sizeInBits {
-		p.Debugw("size in bits", "st", st, "inner", inner)
-		// inner is the total number of bits that the children will occupy
-		sum := 0
-		for sum < inner {
-			child := p.childFrom(next)
-			p.Debugw("child found", "bitIndex", next,
-				"child", child, "child.firstBit", child.firstBit)
-			children = append(children, child)
-			length, err := child.bitLength()
-			if err != nil {
-				return nil, err
-			}
-			next += length
-			sum += length
-		}
-		return children, nil
+		return p.getSiblingsByWidth(next, inner)
 	}
 
-	p.Debugw("size in packets", "st", st, "inner", inner)
-	// inner is the number of child packets
 	return p.nSiblingsAt(next, inner)
 }
 
+// nSiblingsAt reads n child packets from p, starting at bitIndex.
 func (p Packet) nSiblingsAt(bitIndex, n int) (children []Packet, err error) {
 	p.Debugw("enter p.nSiblingsAt()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex, "n", n)
@@ -193,6 +177,24 @@ func (p Packet) nSiblingsAt(bitIndex, n int) (children []Packet, err error) {
 		bitIndex += length
 	}
 
+	return children, nil
+}
+
+// getSiblingsByWidth reads child packets from p until the total bit width of
+// the chilren reaches width.
+func (p Packet) getSiblingsByWidth(bitIndex, width int) (children []Packet, err error) {
+	children = make([]Packet, 0, 2)
+	sum := 0
+	for sum < width {
+		child := p.childFrom(bitIndex)
+		children = append(children, child)
+		length, err := child.bitLength()
+		if err != nil {
+			return nil, err
+		}
+		bitIndex += length
+		sum += length
+	}
 	return children, nil
 }
 
@@ -232,11 +234,18 @@ func (p *Packet) UnmarshalText(hex []byte) error {
 	return nil
 }
 
-// packetType determines the type of a packet
+// packetType defines the type of a packet
 type packetType byte
 
 const (
-	_literalValue packetType = 4
+	_sum packetType = iota
+	_product
+	_minimum
+	_maximum
+	_literal
+	_greaterThan
+	_lessThan
+	_equal
 )
 
 // packetType returns the type of packet that this is (value or an operator)
@@ -270,7 +279,7 @@ func (p Packet) bitLength() (length int, err error) {
 	}
 	p.Debugw("packet type", "pt", pt)
 
-	if pt == _literalValue {
+	if pt == _literal {
 		_, sz, err := p.literal()
 		return sz, err
 	}
@@ -311,7 +320,7 @@ func (p Packet) literal() (val, width int, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	if pt != _literalValue {
+	if pt != _literal {
 		return 0, 0, errors.New("invalid operation")
 	}
 
@@ -396,7 +405,6 @@ func (p Packet) innerSize() (st sizeTypeID, size int, next int, err error) {
 // and the other bits will be zero'd out.  Returns io.EOF if the underlying
 // buffer is not long enough to read these bits.
 func (p Packet) nBits(bitIndex fieldIndex, numBits fieldWidth) (res byte, err error) {
-	// uncomment for more verbose tracing
 	p.Debugw("enter p.nBits()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex, "numBits", numBits)
 	defer func() {
@@ -436,8 +444,10 @@ func (p Packet) nBits(bitIndex fieldIndex, numBits fieldWidth) (res byte, err er
 	return data, nil
 }
 
-// childFrom re-frames the current packet at the given index, returning that
-// as a new Packet, but re-using the underlying buffer.
+// childFrom returns a new packet that re-uses the underlying buffer, but
+// is framed at the given starting bitIndex.
+// If this packet has a debugging logger assigned, it will be passed on to
+// the child.
 func (p Packet) childFrom(bitIndex int) (child Packet) {
 	p.Debugw("enter p.childFrom()", "p", p, "firstBit", p.firstBit,
 		"bitIndex", bitIndex)
