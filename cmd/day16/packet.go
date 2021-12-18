@@ -28,11 +28,14 @@ import (
 // of sub-packets immediately contained by this Packet.  In this case, the
 // header of this Packet will be 18 bits long.
 type Packet struct {
+	// buf is the underlying buffer of data
 	buf []byte
+
 	// firstbit is an offset from 0, defining where this packet begins
 	// within the bufffer.
 	firstBit int
 
+	// log is used for debugging
 	log *zap.SugaredLogger
 }
 
@@ -49,6 +52,10 @@ type (
 
 	// fieldWidth specifies the number of bits used for each field.
 	fieldWidth uint8
+
+	// sizeTypeID specifies whether the size should be interpretted as the
+	// number of bits, or the number of packets.
+	sizeTypeID uint8
 )
 
 const (
@@ -58,8 +65,10 @@ const (
 	_packetTypeIx   fieldIndex = 3
 	_packetTypeBits fieldWidth = 3
 
-	_sizeTypeIx   fieldIndex = 6
-	_sizeTypeBits fieldWidth = 1
+	_sizeTypeIx    fieldIndex = 6
+	_sizeTypeBits  fieldWidth = 1
+	_sizeInBits    sizeTypeID = 0 // inner bit length defined in the following 15 bits
+	_sizeInPackets sizeTypeID = 1 // inner packet size defined in the following 11 bits
 
 	_sizeIx             fieldIndex = 7
 	_sizeImmediateUpper fieldWidth = 7
@@ -69,6 +78,9 @@ const (
 
 	_valueIx    fieldIndex = 6 // (only for the first chunk)
 	_valueChunk fieldWidth = 5
+
+	_maskVal      uint8 = 0b_0000_1111
+	_maskContinue uint8 = 0b_0001_0000
 )
 
 // Version number for this packet.
@@ -236,20 +248,6 @@ func (p *Packet) UnmarshalText(hex []byte) error {
 	return nil
 }
 
-// packetType defines the type of a packet
-type packetType byte
-
-const (
-	_sum packetType = iota
-	_product
-	_minimum
-	_maximum
-	_literal
-	_greaterThan
-	_lessThan
-	_equal
-)
-
 // packetType returns the type of packet that this is (value or an operator)
 func (p Packet) packetType() (pt packetType, err error) {
 	p.Debugw("enter p.packetType()", "p", p, "firstBit", p.firstBit)
@@ -257,9 +255,7 @@ func (p Packet) packetType() (pt packetType, err error) {
 		p.Debugw(" exit p.packetType()", "pt", pt, "err", err)
 	}()
 
-	const bitIndex = 3
-
-	bits, err := p.nBits(bitIndex, _packetTypeBits)
+	bits, err := p.nBits(_packetTypeIx, _packetTypeBits)
 	if err != nil {
 		return 0, err
 	}
@@ -279,7 +275,6 @@ func (p Packet) bitLength() (length int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	p.Debugw("packet type", "pt", pt)
 
 	if pt == _literal {
 		_, sz, err := p.literal()
@@ -297,7 +292,6 @@ func (p Packet) bitLength() (length int, err error) {
 	}
 
 	// inner is the number of child packets
-	p.Debugw("summing child lengths", "numChildren", inner)
 	children, err := p.nSiblingsAt(next, inner)
 	if err != nil {
 		return 0, err
@@ -318,39 +312,21 @@ func (p Packet) bitLength() (length int, err error) {
 // literal returns the integer value of this Packet and the number of bits
 // that are used to store it.
 func (p Packet) literal() (val, width int, err error) {
-	pt, err := p.packetType()
-	if err != nil {
-		return 0, 0, err
-	}
-	if pt != _literal {
-		return 0, 0, errors.New("invalid operation")
-	}
-
-	const chunk_size = 5
-	i, sum := 6, 0
+	i, sum := _valueIx, 0
 	for {
-		data, err := p.nBits(i, chunk_size)
+		data, err := p.nBits(i, _valueChunk)
 		if err != nil {
 			return 0, 0, err
 		}
-		i += chunk_size
+		i += int(_valueChunk)
 
-		const maskVal = 0b_0000_1111
-		sum = sum<<4 + int(data&maskVal)
+		sum = sum<<4 + int(data&_maskVal)
 
-		const maskContinue = 0b_0001_0000
-		if data&maskContinue == 0 {
+		if data&_maskContinue == 0 {
 			return sum, i, nil
 		}
 	}
 }
-
-type sizeTypeID byte
-
-const (
-	_sizeInBits    sizeTypeID = 0 // inner bit length defined in the following 15 bits
-	_sizeInPackets sizeTypeID = 1 // inner packet size defined in the following 11 bits
-)
 
 // innerSize returns the size type of the inner portion of this container packet,
 // which could have two different meanings. Either it is the sum total

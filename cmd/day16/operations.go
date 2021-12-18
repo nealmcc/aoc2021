@@ -2,6 +2,20 @@ package main
 
 import "github.com/pkg/errors"
 
+// packetType defines the type of a packet
+type packetType byte
+
+const (
+	_sum packetType = iota
+	_product
+	_minimum
+	_maximum
+	_literal
+	_greaterThan
+	_lessThan
+	_equal
+)
+
 const (
 	intSize = 32 << (^uint(0) >> 63) // 32 or 64
 
@@ -130,6 +144,7 @@ func (p Packet) equal() (int, error) {
 	return 0, nil
 }
 
+// get2Children returns the first two children of p.
 func get2Children(p Packet) (left, right int, err error) {
 	children, err := p.Children()
 	if err != nil {
