@@ -31,7 +31,7 @@ func part1() int {
 	dyUp := -1*dyDown - 1 // 109
 
 	// now, we just need to find the sum of (1..dyMaxUp)
-	sum := dyUp * dyUp / 2 // 5995
+	sum := dyUp * (dyUp + 1) / 2 // 5995
 
 	return sum
 }
