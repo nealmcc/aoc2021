@@ -1,0 +1,41 @@
+       0       1       2       3       4       5       6       7       8
+     138       0      74     128      26     128       2     244     120
+   8   A   0   0   4   A   8   0   1   A   8   0   0   2   F   4   7   8
+100010100000000001001010100000000001101010000000000000101111010001111000
+VVVTTTISSSSSSSSSSS       (c)        VVVTTTISSSSSSSSSSSSSSS     (ggc)
+    (p)           VVVTTTISSSSSSSSSSS       (gc)           VVVTTTLLLLL   
+
+parent (p):
+--
+firstbit: 0
+version         = 4 
+packet type     = 2 (an operator)
+size type ID    = 1 (packets)
+size in packets = 1
+=> total calculated bit size = 69
+
+child (c):
+--
+firstbit: 18
+version         = 1
+packet type     = 2 (an operator)
+size type ID    = 1 (packets)
+size in packets = 1
+=> total bit length incl children = 51
+
+grandchild (gc):
+--
+firstbit: 36
+version         = 5
+packet type     = 2 (an operator)
+size type ID    = 0 (immediate)
+size in bits    = 11
+=> bit length incl children   = 33
+
+great grandchild (ggc):
+--
+firstbit: 58
+version         = 6
+packet type     = 4 (a literal value)
+value chunk0    = 0x0F (stop, value is 15)
+=> bit length   = 11

@@ -4,13 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
+	logPkg "log"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // main solves the both part 1 and part 2, reading from input.txt
 func main() {
+	logNoSugar, err := zap.NewDevelopment(zap.AddCaller(), zap.AddCallerSkip(1))
+	if err != nil {
+		logPkg.Fatal(err)
+	}
+
+	log := logNoSugar.Sugar()
+
 	in, err := os.Open("input.txt")
 	if err != nil {
 		log.Fatal(err)
@@ -24,11 +33,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	versionSum := part1(packet)
+	p1, err := part1(*packet, log)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	end := time.Now()
 
-	fmt.Println("part1:", versionSum)
+	fmt.Println("part1:", p1)
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
@@ -45,10 +57,31 @@ func read(r io.Reader) (*Packet, error) {
 	return p, err
 }
 
-func part1(p *Packet) int {
-	sum := p.Version()
-	for _, child := range p.Children() {
-		sum += child.Version()
+func part1(p Packet, log *zap.SugaredLogger) (int, error) {
+	s := PacketStack{}
+	p.SetLogger(log)
+	s.Push(p)
+
+	sum := 0
+	for s.Length() > 0 {
+		p = s.Pop()
+
+		ver, err := p.Version()
+		if err != nil {
+			return 0, err
+		}
+
+		sum += ver
+
+		children, err := p.Children()
+		if err != nil {
+			return sum, err
+		}
+
+		for _, child := range children {
+			s.Push(child)
+		}
 	}
-	return sum
+
+	return sum, nil
 }
