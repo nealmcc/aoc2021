@@ -19,11 +19,11 @@ func (s *CoordStack) Length() int {
 
 // Peek looks at the top item on the stack, return true and a copy of the item
 // if there is one. Returns false if the stack is empty.
-func (s *CoordStack) Peek() (bool, v.Coord) {
+func (s *CoordStack) Peek() (v.Coord, bool) {
 	if len(s.data) > 0 {
-		return true, s.data[len(s.data)-1]
+		return s.data[len(s.data)-1], true
 	}
-	return false, v.Coord{}
+	return v.Coord{}, false
 }
 
 // Pop removes the top item from the stack, and returns it.

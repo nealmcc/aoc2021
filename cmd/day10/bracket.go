@@ -62,7 +62,7 @@ func (l *line) parse() (err error) {
 			s.Push(b)
 
 		case isClose(b):
-			ok, top := s.Peek()
+			top, ok := s.Peek()
 			if !ok {
 				return errCorrupted{pos: j + 1, got: b}
 			}

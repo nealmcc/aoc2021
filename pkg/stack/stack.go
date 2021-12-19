@@ -2,7 +2,7 @@
 // Each stack implements the following methods:
 //
 //     Length() int
-//     Peek() (bool, item)
+//     Peek() (item, bool)
 //     Pop() item
 //     Push(item)
 package stack
