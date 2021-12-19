@@ -8,7 +8,6 @@ package fishtree
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"unicode"
 
@@ -28,13 +27,13 @@ type Num int
 
 var _ Node = Num(0)
 
-// Value implements Valuer
+// Value implements Node.Value
 func (n Num) Value() int { return int(n) }
 
-// Magnitude implements Valuer.
+// Magnitude implements Node.Magnitude
 func (n Num) Magnitude() int { return int(n) }
 
-// Add is a binary Node that evaluates by returning the sum of its operands,
+// Add is a Node with two children that evaluates by returning their sum,
 // and has a magnitude of 3x its left node and 2x its right.
 type Add struct {
 	L, R Node
@@ -42,20 +41,20 @@ type Add struct {
 
 var _ Node = Add{}
 
-// Value implements Valuer
+// Value implements Node.Value
 func (a Add) Value() int {
 	return a.L.Value() + a.R.Value()
 }
 
-// Magnitude implements Valuer
+// Magnitude implements Node.Magnitude
 func (a Add) Magnitude() int {
 	return 3*a.L.Magnitude() + 2*a.R.Magnitude()
 }
 
 // ShuntingYard reads tokens from the reader in infix notation, and converts
-// them to postfix notation, so that they can be evaluated as a tree.
+// them to postfix notation so that they can be evaluated as a tree.
 // Converts commas to '+' and discards whitespace, but otherwise requires
-// all input to be valid.
+// all input to be valid.  Expects all numeric inputs to be a single digit.
 func ShuntingYard(r *bytes.Reader) ([]rune, error) {
 	// reverse polish notation
 	rpn := make([]rune, 0, 64)
@@ -78,17 +77,24 @@ func ShuntingYard(r *bytes.Reader) ([]rune, error) {
 			s.Push('[')
 
 		case ']':
-			operator := s.Pop()
-			for operator != '[' {
-				rpn = append(rpn, rune(operator))
-				operator = s.Pop()
+			top, ok := s.Peek()
+			for ok && top != '[' {
+				rpn = append(rpn, rune(s.Pop()))
+				top, ok = s.Peek()
 			}
+			if !ok || top != '[' {
+				i := r.Size() - int64(r.Len())
+				return nil, fmt.Errorf("index %d: mismatched closing bracket", i)
+			}
+			// discard opening bracket from the stack
+			s.Pop()
 
 		default:
 			if unicode.IsSpace(token) {
 				continue
 			}
-			return nil, fmt.Errorf("unexpected input: %c", token)
+			i := r.Size() - int64(r.Len())
+			return nil, fmt.Errorf("index %d: unexpected input %q", i, token)
 		}
 	}
 
@@ -101,17 +107,18 @@ func ShuntingYard(r *bytes.Reader) ([]rune, error) {
 }
 
 // New creates a new fish tree based on the given postfix notation.
+// Expects all numeric inputs to be a single digit.
 func New(postfix []rune) (Node, error) {
 	s := NodeStack{}
 
-	for _, r := range postfix {
-		switch r {
+	for i, token := range postfix {
+		switch token {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			s.Push(Num(r - '0'))
+			s.Push(Num(token - '0'))
 
 		case '+':
 			if s.Length() < 2 {
-				return nil, errors.New("received operator without two operands")
+				return nil, fmt.Errorf("index %d: want operand ; got %q", i, token)
 			}
 			n := Add{}
 			n.R = s.Pop()
@@ -119,7 +126,7 @@ func New(postfix []rune) (Node, error) {
 			s.Push(n)
 
 		default:
-			return nil, fmt.Errorf("unexpected input: %c", r)
+			return nil, fmt.Errorf("index %d: unexpected input %q", i, token)
 		}
 	}
 
