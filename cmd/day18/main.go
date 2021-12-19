@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -21,12 +21,7 @@ func main() {
 
 	start := time.Now()
 
-	tokens, err := read(in)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = fishtree.ShuntingYard(tokens)
+	_, err = read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,12 +33,23 @@ func main() {
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
-// read the given input, returning a byte reader.  The byte reader can then
-// be assembled into an abstract fishtree using fishtree.ShuntingYard()
-func read(r io.Reader) (*bytes.Reader, error) {
-	buf, err := io.ReadAll(r)
-	if err != nil {
+// read the given input, returning a slice of fish trees. Each line of input
+// produces one element in the slice.
+func read(r io.Reader) ([]fishtree.Node, error) {
+	s := bufio.NewScanner(r)
+
+	nodes := make([]fishtree.Node, 0, 8)
+	for s.Scan() {
+		n, err := fishtree.New(s.Text())
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, n)
+	}
+
+	if err := s.Err(); err != nil {
 		return nil, err
 	}
-	return bytes.NewReader(buf), nil
+
+	return nodes, nil
 }

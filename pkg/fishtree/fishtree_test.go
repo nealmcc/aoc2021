@@ -1,7 +1,6 @@
 package fishtree
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,8 +30,11 @@ var examples = []struct {
 		magnitude: 143,
 	},
 	{
-		name:    "example 2",
-		infix:   "[[[[6,6],[7,6]],[[7,7],[7,0]]],[[[7,7],[7,7]],[[7,8],[9,9]]]]",
+		name: "example 2",
+		infix: `[
+			[[[6,6],[7,6]],[[7,7],[7,0]]],
+			[[[7,7],[7,7]],[[7,8],[9,9]]]
+		]`,
 		postfix: "66+76++77+70+++77+77++78+99++++",
 		root: Add{
 			L: Add{
@@ -65,8 +67,8 @@ func TestAdd(t *testing.T) {
 	for _, tc := range examples {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			a := assert.New(t)
 			t.Parallel()
+			a := assert.New(t)
 
 			a.Equal(tc.magnitude, tc.root.Magnitude())
 			a.Equal(tc.value, tc.root.Value())
@@ -81,7 +83,7 @@ func TestShuntingYard(t *testing.T) {
 			t.Parallel()
 			r, a := require.New(t), assert.New(t)
 
-			got, err := ShuntingYard(bytes.NewReader([]byte(tc.infix)))
+			got, err := shuntingYard(tc.infix)
 			r.NoError(err)
 
 			a.Equal(tc.postfix, string(got))
@@ -89,18 +91,41 @@ func TestShuntingYard(t *testing.T) {
 	}
 }
 
-func TestNew(t *testing.T) {
+func TestParsePostfix(t *testing.T) {
 	for _, tc := range examples {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r, a := require.New(t), assert.New(t)
 
-			got, err := New([]rune(tc.postfix))
+			got, err := parsePostfix([]rune(tc.postfix))
 			r.NoError(err)
 
 			a.Equal(tc.root, got)
 			t.Log(got)
+		})
+	}
+}
+
+func Test_inputValidation(t *testing.T) {
+	tt := []struct {
+		name  string
+		infix string
+	}{
+		{"Missing closing bracket", "[2,"},
+		{"Extra closing bracket", "[2,2]]"},
+		{"Missing right-hand child", "[2,[]]"},
+		{"Unexpected symbol", "[2,a]"},
+		{"Missing operator", "[22]"},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := New(tc.infix)
+			require.Error(t, err)
 		})
 	}
 }
