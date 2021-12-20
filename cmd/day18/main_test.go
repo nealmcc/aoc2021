@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/nealmcc/aoc2021/pkg/fish"
+	"github.com/nealmcc/aoc2021/pkg/ast"
 )
 
 func TestRead(t *testing.T) {
@@ -17,7 +17,6 @@ func TestRead(t *testing.T) {
 	r.NoError(err)
 
 	r.Equal(1, len(nodes))
-	a.Equal(15, nodes[0].Value())
 	a.Equal(143, nodes[0].Magnitude())
 }
 
@@ -30,22 +29,7 @@ func TestPart1(t *testing.T) {
 		want string
 	}{
 		{
-			"ones to fours (already reduced)",
-			[]string{"[1,1]", "[2,2]", "[3,3]", "[4,4]"},
-			"[[[[1,1],[2,2]],[3,3]],[4,4]]",
-		},
-		{
-			"ones to fives",
-			[]string{"[1,1]", "[2,2]", "[3,3]", "[4,4]", "[5,5]"},
-			"[[[[3,0],[5,3]],[4,4]],[5,5]]",
-		},
-		{
-			"ones to sixes",
-			[]string{"[1,1]", "[2,2]", "[3,3]", "[4,4]", "[5,5]", "[6,6]"},
-			"[[[[5,0],[7,4]],[5,5]],[6,6]]",
-		},
-		{
-			"larger example",
+			"example A",
 			[]string{
 				"[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]",
 				"[7,[[[3,7],[4,3]],[[6,3],[8,8]]]]",
@@ -84,13 +68,13 @@ func TestPart1(t *testing.T) {
 			r, a := require.New(t), assert.New(t)
 
 			combined := strings.Join(tc.in, "\n")
-			root, err := read(strings.NewReader(combined))
+			lines, err := read(strings.NewReader(combined))
 			r.NoError(err)
 
-			got, err := part1(root)
+			got, err := ast.Sum(lines...)
 			r.NoError(err)
 
-			want, err := fish.New(tc.want)
+			want, err := ast.New(tc.want)
 			r.NoError(err)
 
 			a.Equal(want, got)

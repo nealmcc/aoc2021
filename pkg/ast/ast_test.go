@@ -1,6 +1,7 @@
-package fish
+package ast
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,23 +12,21 @@ var examples = []struct {
 	name      string
 	infix     string
 	postfix   string
-	root      Pair
-	value     int
+	root      Number
 	magnitude int
 }{
 	{
 		name:    "example 1",
-		infix:   "[[1,2],[[3,4],5]]",
-		postfix: "12+34+5++",
-		root: &Add{
-			L: &Add{L: N(1), R: N(2)},
-			R: &Add{
-				L: &Add{L: N(3), R: N(4)},
-				R: N(5),
-			},
-		},
-		value:     15,
-		magnitude: 143,
+		infix:   "[[1,3],[[5,7],9]]",
+		postfix: "13+57+9++",
+		root: pair(3,
+			pair(1, &node{id: 0, value: 1}, &node{id: 2, value: 3}),
+			pair(7,
+				pair(5, &node{id: 4, value: 5}, &node{id: 6, value: 7}),
+				&node{id: 8, value: 9},
+			),
+		),
+		magnitude: 237,
 	},
 	{
 		name: "example 2",
@@ -36,78 +35,51 @@ var examples = []struct {
 			[[[7,7],[7,7]],[[7,8],[9,9]]]
 		]`,
 		postfix: "66+76++77+70+++77+77++78+99++++",
-		root: &Add{
-			L: &Add{
-				L: &Add{
-					L: &Add{L: N(6), R: N(6)},
-					R: &Add{L: N(7), R: N(6)},
-				},
-				R: &Add{
-					L: &Add{L: N(7), R: N(7)},
-					R: &Add{L: N(7), R: N(0)},
-				},
-			},
-			R: &Add{
-				L: &Add{
-					L: &Add{L: N(7), R: N(7)},
-					R: &Add{L: N(7), R: N(7)},
-				},
-				R: &Add{
-					L: &Add{L: N(7), R: N(8)},
-					R: &Add{L: N(9), R: N(9)},
-				},
-			},
-		},
-		value:     107,
+		root: pair(15,
+			pair(7,
+				pair(3,
+					pair(1, &node{id: 0, value: 6}, &node{id: 2, value: 6}),
+					pair(5, &node{id: 4, value: 7}, &node{id: 6, value: 6}),
+				),
+				pair(11,
+					pair(9, &node{id: 8, value: 7}, &node{id: 10, value: 7}),
+					pair(13, &node{id: 12, value: 7}, &node{id: 14, value: 0}),
+				),
+			),
+			pair(23,
+				pair(19,
+					pair(17, &node{id: 16, value: 7}, &node{id: 18, value: 7}),
+					pair(21, &node{id: 20, value: 7}, &node{id: 22, value: 7}),
+				),
+				pair(27,
+					pair(25, &node{id: 24, value: 7}, &node{id: 26, value: 8}),
+					pair(29, &node{id: 28, value: 9}, &node{id: 30, value: 9}),
+				),
+			),
+		),
 		magnitude: 4140,
 	},
 }
 
-func TestAdd(t *testing.T) {
-	for _, tc := range examples {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			a := assert.New(t)
-
-			a.Equal(tc.magnitude, tc.root.Magnitude())
-			a.Equal(tc.value, tc.root.Value())
-		})
-	}
-}
-
-func TestShuntingYard(t *testing.T) {
-	for _, tc := range examples {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			r, a := require.New(t), assert.New(t)
-
-			got, err := shuntingYard(tc.infix)
-			r.NoError(err)
-
-			a.Equal(tc.postfix, string(got))
-		})
-	}
-}
-
-func TestParsePostfix(t *testing.T) {
-	for _, tc := range examples {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			r, a := require.New(t), assert.New(t)
-
-			got, err := parsePostfix([]rune(tc.postfix))
-			r.NoError(err)
-
-			a.Equal(tc.root, got)
-			t.Log(got)
-		})
-	}
-}
-
 func TestNew(t *testing.T) {
+	for _, tc := range examples {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r, a := require.New(t), assert.New(t)
+
+			got, err := New(tc.infix)
+			r.NoError(err)
+
+			t.Logf("got tree: %v", got.root)
+			a.Equal(tc.postfix, fmt.Sprintf("%+v", got.root))
+			a.Equal(got.root, tc.root)
+			a.Equal(tc.magnitude, got.Magnitude())
+		})
+	}
+}
+
+func TestErrorHandling(t *testing.T) {
 	tt := []struct {
 		name  string
 		infix string
@@ -188,9 +160,7 @@ func TestReduce(t *testing.T) {
 			top, err := New(tc.in)
 			r.NoError(err)
 
-			p, isPair := top.(Pair)
-			r.True(isPair)
-			Reduce(p)
+			reduce(top)
 
 			want, err := New(tc.want)
 			r.NoError(err)
@@ -198,4 +168,9 @@ func TestReduce(t *testing.T) {
 			a.Equal(want, top)
 		})
 	}
+}
+
+// pair is a utility function to create a pointer to a pair of nodes.
+func pair(id int, left, right *node) *node {
+	return &node{id: id, op: opPair, left: left, right: right}
 }
