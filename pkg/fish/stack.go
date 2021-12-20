@@ -1,23 +1,23 @@
-package fishtree
+package fish
 
 import (
 	"errors"
 )
 
-// NodeStack holds a stack of nodes.
+// Stack holds a stack of nodes.
 // The zero value is empty and ready to use.
-type NodeStack struct {
+type Stack struct {
 	data []Node
 }
 
 // Length returns the number of items on the stack.
-func (s *NodeStack) Length() int {
+func (s *Stack) Length() int {
 	return len(s.data)
 }
 
 // Peek looks at the top item on the stack, return true and a copy of the item
 // if there is one. Returns false if the stack is empty.
-func (s *NodeStack) Peek() (Node, bool) {
+func (s *Stack) Peek() (Node, bool) {
 	if len(s.data) > 0 {
 		return s.data[len(s.data)-1], true
 	}
@@ -26,7 +26,7 @@ func (s *NodeStack) Peek() (Node, bool) {
 
 // Pop removes the top item from the stack, and returns it.
 // If the stack is empty, Pop() panics.
-func (s *NodeStack) Pop() Node {
+func (s *Stack) Pop() Node {
 	if len(s.data) == 0 {
 		panic(errors.New("cannot pop an empty stack"))
 	}
@@ -36,6 +36,6 @@ func (s *NodeStack) Pop() Node {
 }
 
 // Push adds the given item to the top of the stack
-func (s *NodeStack) Push(x Node) {
+func (s *Stack) Push(x Node) {
 	s.data = append(s.data, x)
 }

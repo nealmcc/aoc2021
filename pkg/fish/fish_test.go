@@ -1,4 +1,4 @@
-package fishtree
+package fish
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ var examples = []struct {
 	name      string
 	infix     string
 	postfix   string
-	root      Node
+	root      Pair
 	value     int
 	magnitude int
 }{
@@ -19,11 +19,11 @@ var examples = []struct {
 		name:    "example 1",
 		infix:   "[[1,2],[[3,4],5]]",
 		postfix: "12+34+5++",
-		root: Add{
-			L: Add{L: Num(1), R: Num(2)},
-			R: Add{
-				L: Add{L: Num(3), R: Num(4)},
-				R: Num(5),
+		root: &Add{
+			L: &Add{L: N(1), R: N(2)},
+			R: &Add{
+				L: &Add{L: N(3), R: N(4)},
+				R: N(5),
 			},
 		},
 		value:     15,
@@ -36,25 +36,25 @@ var examples = []struct {
 			[[[7,7],[7,7]],[[7,8],[9,9]]]
 		]`,
 		postfix: "66+76++77+70+++77+77++78+99++++",
-		root: Add{
-			L: Add{
-				L: Add{
-					L: Add{L: Num(6), R: Num(6)},
-					R: Add{L: Num(7), R: Num(6)},
+		root: &Add{
+			L: &Add{
+				L: &Add{
+					L: &Add{L: N(6), R: N(6)},
+					R: &Add{L: N(7), R: N(6)},
 				},
-				R: Add{
-					L: Add{L: Num(7), R: Num(7)},
-					R: Add{L: Num(7), R: Num(0)},
+				R: &Add{
+					L: &Add{L: N(7), R: N(7)},
+					R: &Add{L: N(7), R: N(0)},
 				},
 			},
-			R: Add{
-				L: Add{
-					L: Add{L: Num(7), R: Num(7)},
-					R: Add{L: Num(7), R: Num(7)},
+			R: &Add{
+				L: &Add{
+					L: &Add{L: N(7), R: N(7)},
+					R: &Add{L: N(7), R: N(7)},
 				},
-				R: Add{
-					L: Add{L: Num(7), R: Num(8)},
-					R: Add{L: Num(9), R: Num(9)},
+				R: &Add{
+					L: &Add{L: N(7), R: N(8)},
+					R: &Add{L: N(9), R: N(9)},
 				},
 			},
 		},
@@ -107,7 +107,7 @@ func TestParsePostfix(t *testing.T) {
 	}
 }
 
-func Test_inputValidation(t *testing.T) {
+func TestNew(t *testing.T) {
 	tt := []struct {
 		name  string
 		infix string
@@ -126,6 +126,76 @@ func Test_inputValidation(t *testing.T) {
 
 			_, err := New(tc.infix)
 			require.Error(t, err)
+		})
+	}
+}
+
+func TestExplode(t *testing.T) {
+	t.SkipNow()
+
+	tt := []struct {
+		name, in, want string
+	}{
+		{
+			"left-most node",
+			"[[[[[9,8],1],2],3],4]",
+			"[[[[0,9],2],3],4]",
+		},
+		{
+			"a middle node",
+			"[4,[[3,[[7,9],6]],3]]",
+			"[1,0]",
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			r, a := require.New(t), assert.New(t)
+			tree, err := New(tc.in)
+			r.NoError(err)
+
+			t.Logf("before: %v", tree)
+
+			want, err := New(tc.want)
+			r.NoError(err)
+			t.Logf("want: %v", want)
+			a.Equal(want, tree)
+		})
+	}
+}
+
+func TestReduce(t *testing.T) {
+	t.SkipNow()
+
+	tt := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			"ones to fives",
+			"[[[[[1,1],[2,2]],[3,3]],[4,4]], [5,5]]",
+			"[[[[3,0],[5,3]],[4,4]],[5,5]]",
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			r, a := require.New(t), assert.New(t)
+
+			top, err := New(tc.in)
+			r.NoError(err)
+
+			p, isPair := top.(Pair)
+			r.True(isPair)
+			Reduce(p)
+
+			want, err := New(tc.want)
+			r.NoError(err)
+
+			a.Equal(want, top)
 		})
 	}
 }
