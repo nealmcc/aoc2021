@@ -108,7 +108,7 @@ func New(text string) (*Tree, error) {
 		infix: make(map[int]*node, len(postfix)),
 	}
 
-	s := Stack{}
+	s := stack{}
 	for _, n := range postfix {
 		t.infix[n.id] = n
 
@@ -121,9 +121,7 @@ func New(text string) (*Tree, error) {
 			return nil, errors.New("missing operand")
 		}
 		right := s.Pop().(*node)
-
 		left := s.Pop().(*node)
-
 		n.left, n.right = left, right
 		s.Push(n)
 	}
@@ -149,7 +147,7 @@ func New(text string) (*Tree, error) {
 func shuntingYard(infix string) (postfix []*node, err error) {
 	// reverse polish notation
 	rpn := make([]*node, 0, 64)
-	s := Stack{}
+	s := stack{}
 
 	var nextID int
 
