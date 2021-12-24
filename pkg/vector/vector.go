@@ -69,6 +69,21 @@ func Sub(a, b Coord) Coord {
 	}
 }
 
+func Neighbours8(v Coord) []Coord {
+	return []Coord{
+		{X: v.X - 1, Y: v.Y - 1},
+		{X: v.X, Y: v.Y - 1},
+		{X: v.X + 1, Y: v.Y - 1},
+
+		{X: v.X - 1, Y: v.Y},
+		{X: v.X + 1, Y: v.Y},
+
+		{X: v.X - 1, Y: v.Y + 1},
+		{X: v.X, Y: v.Y + 1},
+		{X: v.X + 1, Y: v.Y + 1},
+	}
+}
+
 // Reduce returns the shortest vector with the same direction as v,
 // that can still be represented with integer values for X and Y.
 // Also returns the largest positive integer that evenly divides v.
