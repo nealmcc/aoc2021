@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -22,16 +23,7 @@ var _testExample = struct {
 ..#..
 ..###
 `,
-	alg: algorithm{
-		0b_0010100111110101010111011000001110110100111011110011111001000010,
-		0b_0100110011100111111011100011110010011111001100101111100011010100,
-		0b_1011001010000001011101111110111011110001011011001001001111100000,
-		0b_1010000111001011000000100000100100100110010001101111110111101111,
-		0b_0101000100000001001010100011110110100000010010001101011001000110,
-		0b_1011001110100000010100000001010101111011101100010000011110100100,
-		0b_1011010000110010111100001100011001000100000010100000001000000011,
-		0b_0011110010001010100011001010011100111110000000010011110000001001,
-	},
+	alg: "..#.#..#####.#.#.#.###.##.....###.##.#..###.####..#####..#....#..#..##..###..######.###...####..#..#####..##..#.#####...##.#.#..#.##..#.#......#.###.######.###.####...#.##.##..#..#..#####.....#.#....###..#.##......#.....#..#..#..##..#...##.######.####.####.#.#...#.......#..#.#.#...####.##.#......#..#...##.#.##..#...##.#.##..###.#......#.#.......#.#.#.####.###.##...#.....####.#..#..#.##.#....##..#.####....##...##..#...#......#.#.......#.......##..####..#...#.#.#...##..#.#..###..#####........#..####......#..#",
 	img: image{
 		size:       5,
 		numLit:     10,
@@ -72,4 +64,127 @@ func TestPart1(t *testing.T) {
 	r.NoError(err)
 
 	a.Equal(35, part1(alg, img))
+}
+
+func TestFormat(t *testing.T) {
+	got := fmt.Sprintf("%v", _testExample.img)
+
+	assert.Equal(t, `#..#.
+#....
+##..#
+..#..
+..###
+`, got)
+}
+
+func TestEnhance(t *testing.T) {
+	alg, img := _testExample.alg, _testExample.img
+
+	img1 := alg.enhance(img)
+	img2 := alg.enhance(img1)
+
+	want, err := newImage([]byte(_testExample.enhance2x))
+	require.NoError(t, err)
+
+	assert.Equal(t, want, img2)
+}
+
+func TestEnhance_Tricky(t *testing.T) {
+	// trickyAlg is tricky because the 0th value is '#'.  This means that when
+	// enhancing an infinite image, if the source image is *not* infinitely lit,
+	// then the target image will be.  Also, because the 511th value is '.' the
+	// converse is true. When enhancing an image that *is* infinitely lit, the
+	// resulting image will not be.
+	trickyAlg := algorithm("#..#.#######.##...##.##.#.#..#..#.....####...####.##.###...##.####......##.###.##...#..##..#.######...###..########.#.##.#.#..#..##.##..####.###.###..#...##.##.###.....###..###....#.####.#..##....#.##...##.#..#.....###.#..#.....##..##.#.#.....#....####.#.#.#....#.#...#.##...#.#.#....#.#.#....##.#.####.##..#####.####.#.####..#...###.###..##...#..###.####...#..#.####.###.##..##....#.####....#.#..##.#..#.##.##..#......###.#...#..#.#.#.##.######.##.##..####.##..#.###.##.....##...#.....#..#....###..####.#.##..#.")
+
+	img := _testExample.img
+
+	img1 := trickyAlg.enhance(img)
+	assert.True(t, img1.infinitePx, "image 1 is infinitely lit")
+
+	img2 := trickyAlg.enhance(img1)
+	assert.False(t, img2.infinitePx, "image 2 is not infinitely lit")
+}
+
+func TestGetMask(t *testing.T) {
+	finiteBits := []byte(`#..#.
+#....
+##..#
+..#..
+..###
+`)
+
+	basicImage, err := newImage(finiteBits)
+	require.NoError(t, err)
+
+	fullyLitImg, err := newImage(finiteBits)
+	require.NoError(t, err)
+	fullyLitImg.infinitePx = true
+
+	tt := []struct {
+		name     string
+		img      image
+		row, col int
+		want     string
+	}{
+		{
+			name: "fully inside the source image",
+			img:  basicImage,
+			row:  1,
+			col:  1,
+			want: "#..\n#..\n##.\n",
+		},
+		{
+			name: "on the edge of a basic image",
+			img:  basicImage,
+			want: "...\n.#.\n.#.\n",
+		},
+		{
+			name: "fully inside an infinite image",
+			img:  fullyLitImg,
+			row:  1,
+			col:  1,
+			want: "#..\n#..\n##.\n",
+		},
+		{
+			name: "on the edge of an infinite image",
+			img:  fullyLitImg,
+			row:  4,
+			col:  4,
+			want: "..#\n###\n###\n",
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Log("applying mask to image at", tc.row, tc.col)
+			t.Logf("\n%v", tc.img)
+
+			got := getMask(tc.img, tc.row, tc.col)
+
+			wantMask, err := newImage([]byte(tc.want))
+			require.NoError(t, err)
+			assert.Equal(t, wantMask, got)
+		})
+	}
+}
+
+func TestAlgIsLit(t *testing.T) {
+	tt := []struct {
+		name string
+		key  int
+		want bool
+	}{
+		{"first bit", 0, false},
+		{"0th word, second-last bit, ", 62, true},
+		{"last bit", 511, true},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			got := _testExample.alg.isLit(tc.key)
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
