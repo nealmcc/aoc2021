@@ -156,7 +156,7 @@ type multiverse struct {
 	playing map[game]int // playing keeps track of in-progress games
 }
 
-// playTurn plays one round of games for each game in the multiverse
+// playTurn causes each incomplete game in the multiverse to play 1 turn.
 // Returns true if all games are complete.
 func (m *multiverse) playTurn() bool {
 	next := make(map[game]int, 16)
