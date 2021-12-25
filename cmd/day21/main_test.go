@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestD100_roll(t *testing.T) {
@@ -31,7 +30,6 @@ func TestPart1(t *testing.T) {
 		d:       new(d100),
 	}
 
-	log := zaptest.NewLogger(t).Sugar()
-	got := part1(g, log)
+	got := part1(g)
 	r.Equal(739785, got)
 }
