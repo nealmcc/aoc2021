@@ -23,13 +23,26 @@ func TestD100_roll(t *testing.T) {
 
 func TestPart1(t *testing.T) {
 	r := require.New(t)
-	p1 := player{Name: "p1", Pos: 4}
-	p2 := player{Name: "p2", Pos: 8}
+
 	g := game{
-		players: []*player{&p1, &p2},
-		d:       new(d100),
+		P1:    player{Name: "p1", Pos: 4},
+		P2:    player{Name: "p2", Pos: 8},
+		ToWin: 1000,
 	}
 
 	got := part1(g)
 	r.Equal(739785, got)
+}
+
+func TestPart2(t *testing.T) {
+	r := require.New(t)
+
+	g := game{
+		P1:    player{Name: "p1", Pos: 4},
+		P2:    player{Name: "p2", Pos: 8},
+		ToWin: 21,
+	}
+
+	got := part2(g)
+	r.Equal(444356092776315, got)
 }
