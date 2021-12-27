@@ -63,7 +63,9 @@ func TestPart1(t *testing.T) {
 	alg, img, err := read(strings.NewReader(_testExample.in))
 	r.NoError(err)
 
-	a.Equal(35, part1(alg, img))
+	p1 := part1(alg, img)
+
+	a.Equal(35, p1.numLit)
 }
 
 func TestFormat(t *testing.T) {
