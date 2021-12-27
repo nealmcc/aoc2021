@@ -7,8 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/nealmcc/aoc2021/pkg/stack"
 	v "github.com/nealmcc/aoc2021/pkg/vector"
+	"github.com/nealmcc/aoc2021/pkg/vector/stack"
 )
 
 const input = `8271653836
@@ -87,7 +87,7 @@ func part2(octopii *grid) int {
 // step performs one step of octopus energy adjustment, returning the number
 // of octopii that flashed during that step.
 func (g *grid) step() int {
-	ready := &stack.CoordStack{}
+	ready := &stack.Coord{}
 	for oct := range *g {
 		(*g)[oct]++
 		if (*g)[oct] == 10 {
