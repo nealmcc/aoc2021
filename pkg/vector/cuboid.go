@@ -1,9 +1,5 @@
 package vector
 
-import (
-	"errors"
-)
-
 // Cuboid defines a right rectangular prism that begins
 // at position (X1, Y1, Y1) in one corner, and ends at
 // position (X2, Y2, Z2) in the opposite corner.
@@ -36,102 +32,11 @@ func (c Cuboid) Volume() int {
 	return width * height * depth
 }
 
-// Contains checks to see if the given point is within the bounds of
-// this cuboid.  A point on the surface of a cuboid is considered
-// within its bounds.
-func (c Cuboid) Contains(x, y, z int) bool {
-	c = c.Normal()
-	if x <= c.X1 || x >= c.X2 {
-		return false
-	}
-	if y <= c.Y1 || y >= c.Y2 {
-		return false
-	}
-	if z <= c.Z1 || z >= c.Z2 {
-		return false
-	}
-	return true
-}
-
-// Explode this cuboid into 8 new cuboids which cover the same region of 3D
-// space as the original.  The split will occur at x,y,z.  It is valid to
-// explode a cuboid at a point on its surface, in which case the volume of
-// some of the resulting pieces will be 0.  It is not valid to explode a
-// cuboid at a point it doesn't contain.
-func (c Cuboid) Explode(x, y, z int) ([]Cuboid, error) {
-	if !c.Contains(x, y, z) {
-		return nil, errors.New("can only explode a cuboid from within its bounds")
-	}
-
-	two, _ := c.SliceX(x)
-
-	four := make([]Cuboid, 0, 4)
-	for _, box := range two {
-		boxes, _ := box.SliceY(y)
-		four = append(four, boxes...)
-	}
-
-	eight := make([]Cuboid, 0, 8)
-	for _, box := range four {
-		boxes, _ := box.SliceZ(z)
-		eight = append(eight, boxes...)
-	}
-
-	return eight, nil
-}
-
-// SliceX bisects this cuboid into two portions divided by the plane at x.
-// Returns false if x is outside the bounds of this cuboid.
-func (c Cuboid) SliceX(x int) ([]Cuboid, bool) {
-	if x < c.X1 || x > c.X2 {
-		return nil, false
-	}
-
-	lower := Cuboid{X1: c.X1, X2: x, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
-	upper := Cuboid{X1: x, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
-
-	return []Cuboid{lower, upper}, true
-}
-
-// SliceY bisects this cuboid into two portions divided by the plane at y.
-// Returns false if y is outside the bounds of this cuboid.
-func (c Cuboid) SliceY(y int) ([]Cuboid, bool) {
-	if y < c.Y1 || y > c.Y2 {
-		return nil, false
-	}
-
-	lower := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: y, Z1: c.Z1, Z2: c.Z2}
-	upper := Cuboid{X1: c.X1, X2: c.X2, Y1: y, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
-
-	return []Cuboid{lower, upper}, true
-}
-
-// SliceZ bisects this cuboid into two portions divided by the plane at z.
-// Returns false if z is outside the bounds of this cuboid.
-func (c Cuboid) SliceZ(z int) ([]Cuboid, bool) {
-	if z < c.Z1 || z > c.Z2 {
-		return nil, false
-	}
-
-	lower := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: z}
-	upper := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: z, Z2: c.Z2}
-
-	return []Cuboid{lower, upper}, true
-}
-
 // Intersection finds the intersection of this cuboid with the other, if any.
-func (c Cuboid) Intersect(other Cuboid) (Cuboid, bool) {
-	if c.IsDisjoint(other) {
-		return Cuboid{}, false
-	}
-	c = c.Normal()
-	other = other.Normal()
-
-	// var (
-	// 	ourPieces   []Cuboid
-	// 	otherPieces []Cuboid
-	// )
-	return Cuboid{}, true
+// If there is no intersection, then the zero Cuboid is returned.
+func (c Cuboid) Intersect(other Cuboid) Cuboid {
+	intersection, _, _ := CuboidOuterJoin(c, other)
+	return intersection
 }
 
 // IsDisjoint returns true if this cuboid and the other cuboid have no
@@ -161,4 +66,126 @@ func (c Cuboid) IsDisjoint(other Cuboid) bool {
 	}
 
 	return false
+}
+
+// Slice this cuboid into new cuboids which cover the same region of 3D
+// space as the original.  The split will occur at the planes x y, and z.
+// It is valid to s
+// explode a cuboid at a point on its surface, in which case the volume of
+// some of the resulting pieces will be 0.  It is not valid to explode a
+// cuboid at a point it doesn't contain.
+func (c Cuboid) Slice(x, y, z int) []Cuboid {
+	two := c.SliceX(x)
+
+	four := make([]Cuboid, 0, 4)
+	for _, box := range two {
+		boxes := box.SliceY(y)
+		four = append(four, boxes...)
+	}
+
+	eight := make([]Cuboid, 0, 8)
+	for _, box := range four {
+		boxes := box.SliceZ(z)
+		eight = append(eight, boxes...)
+	}
+
+	return eight
+}
+
+// SliceX bisects this cuboid into two portions divided by the plane at x.
+// If the plane at x does not intersect this cuboid, then this cuboid is returned.
+func (c Cuboid) SliceX(x int) []Cuboid {
+	c = c.Normal()
+	if x <= c.X1 || x >= c.X2 {
+		return []Cuboid{c}
+	}
+
+	lower := Cuboid{X1: c.X1, X2: x, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
+	upper := Cuboid{X1: x, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
+
+	return []Cuboid{lower, upper}
+}
+
+// SliceY bisects this cuboid into two portions divided by the plane at y.
+// If the plane at y does not intersect this cuboid, then this cuboid is returned.
+func (c Cuboid) SliceY(y int) []Cuboid {
+	c = c.Normal()
+	if y <= c.Y1 || y >= c.Y2 {
+		return []Cuboid{c}
+	}
+
+	lower := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: y, Z1: c.Z1, Z2: c.Z2}
+	upper := Cuboid{X1: c.X1, X2: c.X2, Y1: y, Y2: c.Y2, Z1: c.Z1, Z2: c.Z2}
+
+	return []Cuboid{lower, upper}
+}
+
+// SliceZ bisects this cuboid into two portions divided by the plane at z.
+// If the plane at z does not intersect this cuboid, then this cuboid is returned.
+func (c Cuboid) SliceZ(z int) []Cuboid {
+	c = c.Normal()
+	if z <= c.Z1 || z >= c.Z2 {
+		return []Cuboid{c}
+	}
+
+	lower := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: c.Z1, Z2: z}
+	upper := Cuboid{X1: c.X1, X2: c.X2, Y1: c.Y1, Y2: c.Y2, Z1: z, Z2: c.Z2}
+
+	return []Cuboid{lower, upper}
+}
+
+// CuboidOuterJoin returns the intersection of cuboids a and b
+// as well as the difference of a-b and b-a.
+// The sum of all the return values is a + b.
+func CuboidOuterJoin(a, b Cuboid) (intersect Cuboid, left, right []Cuboid) {
+	if a.IsDisjoint(b) {
+		return Cuboid{}, []Cuboid{a}, []Cuboid{b}
+	}
+	a, b = a.Normal(), b.Normal()
+
+	var (
+		aPieces = make(map[Cuboid]struct{}, 16)
+		bPieces = make(map[Cuboid]struct{}, 16)
+	)
+
+	eight := a.Slice(b.X1, b.Y1, b.Z1)
+	for _, box := range eight {
+		slices := box.Slice(b.X2, b.Y2, b.Z2)
+		for _, box := range slices {
+			if box.Volume() > 0 {
+				aPieces[box.Normal()] = struct{}{}
+			}
+		}
+	}
+
+	eight = b.Slice(a.X1, a.Y1, a.Z1)
+	for _, box := range eight {
+		slices := box.Slice(a.X2, a.Y2, a.Z2)
+		for _, box := range slices {
+			if box.Volume() > 0 {
+				bPieces[box.Normal()] = struct{}{}
+			}
+		}
+	}
+
+	for boxA := range aPieces {
+		if _, match := bPieces[boxA]; match {
+			intersect = boxA
+			delete(aPieces, boxA)
+			delete(bPieces, boxA)
+			break
+		}
+	}
+
+	left = make([]Cuboid, 0, len(aPieces))
+	for key := range aPieces {
+		left = append(left, key)
+	}
+
+	right = make([]Cuboid, 0, len(bPieces))
+	for key := range bPieces {
+		right = append(right, key)
+	}
+
+	return intersect, left, right
 }

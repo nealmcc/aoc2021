@@ -8,8 +8,12 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
+
+	"github.com/nealmcc/aoc2021/pkg/vector"
+	"go.uber.org/zap"
 )
 
 // main solves both part 1 and part 2, reading from input.txt
@@ -22,17 +26,21 @@ func main() {
 
 	start := time.Now()
 
-	boot, _, err := read(in)
+	boot, after, err := read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	p1 := part1(boot)
+	r := part1(boot)
+	p1 := r.numLit()
+
+	r = part2(r, after)
+	p2 := r.numLit()
 
 	end := time.Now()
 
 	fmt.Println("part1:", p1)
-	// fmt.Println("part2:", p2)
+	fmt.Println("part2:", p2)
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
@@ -44,11 +52,15 @@ type instruction struct {
 	z1, z2 int
 }
 
-// reactor is a set of 3d coordinates
-type reactor map[int]map[int]map[int]struct{}
+// reactor is a collection of activated cells.
+type reactor struct {
+	cells map[vector.Cuboid]struct{}
+}
 
 func newReactor() *reactor {
-	r := make(reactor, 101)
+	r := reactor{
+		cells: make(map[vector.Cuboid]struct{}, 16),
+	}
 	return &r
 }
 
@@ -134,61 +146,84 @@ func read(r io.Reader) (boot, after []instruction, err error) {
 }
 
 // part1 solves part 1.
-func part1(boot []instruction) int {
+func part1(boot []instruction, logs ...*zap.SugaredLogger) *reactor {
 	r := newReactor()
 
 	for _, act := range boot {
-		act.Do(r)
+		act.Do(r, logs...)
 	}
-	return r.numLit()
+	return r
 }
 
-func (act instruction) Do(r *reactor) {
-	for x := act.x1; x <= act.x2; x++ {
-		for y := act.y1; y <= act.y2; y++ {
-			for z := act.z1; z <= act.z2; z++ {
-				if act.on {
-					r.set(x, y, z)
-				} else {
-					r.unset(x, y, z)
-				}
-			}
+// part2 solves part 2.
+func part2(r *reactor, after []instruction, logs ...*zap.SugaredLogger) *reactor {
+	sort.Slice(after, func(i, j int) bool {
+		return after[i].on && !after[j].on
+	})
+
+	for _, act := range after {
+		act.Do(r, logs...)
+	}
+	return r
+}
+
+// Do performs this instruction on the reactor, and uses the optional logger(s)
+// to print debugging information.
+func (act instruction) Do(r *reactor, logs ...*zap.SugaredLogger) {
+	infow := func(msg string, keysAndValues ...interface{}) {
+		for _, l := range logs {
+			l.Infow(msg, keysAndValues...)
 		}
 	}
+
+	infow("beginning action", "numCubes",
+		(act.x2-act.x1)*(act.y2-act.y1)*(act.z2-act.z1))
+
+	start := time.Now()
+
+	box := vector.Cuboid{
+		X1: act.x1, X2: act.x2,
+		Y1: act.y1, Y2: act.y2,
+		Z1: act.z1, Z2: act.z2,
+	}
+	if act.on {
+		r.set(box)
+	} else {
+		r.unset(box)
+	}
+
+	end := time.Now()
+	infow("finished action", "time spent", end.Sub(start))
 }
 
+// numLit returns the number of lit cells within the reactor.
 func (r reactor) numLit() int {
 	var sum int
-	for _, ys := range r {
-		for _, zs := range ys {
-			sum += len(zs)
-		}
+	for box := range r.cells {
+		sum += box.Volume()
 	}
 	return sum
 }
 
-func (r *reactor) set(x, y, z int) {
-	if (*r)[x] == nil {
-		(*r)[x] = make(map[int]map[int]struct{}, 101)
-	}
+func (r *reactor) set(newCell vector.Cuboid) {
+	keep := make([]vector.Cuboid, 16)
 
-	if (*r)[x][y] == nil {
-		(*r)[x][y] = make(map[int]struct{}, 101)
+	for cell := range r.cells {
+		overlap, ok := cell.Intersect(newCell)
+		if !ok {
+			continue
+		}
+		delete(r.cells, cell)
+		boxes := cell.Remove(overlap)
+		for _, b := range boxes {
+			keep = append(keep, b)
+		}
 	}
-
-	(*r)[x][y][z] = struct{}{}
+	r.cells[newCell] = struct{}{}
+	for _, cell := range keep {
+		r.cells[cell] = struct{}{}
+	}
 }
 
-func (r *reactor) unset(x, y, z int) {
-	ys, ok := (*r)[x]
-	if !ok {
-		return
-	}
-
-	zs, ok := ys[y]
-	if !ok {
-		return
-	}
-
-	delete(zs, z)
+func (r *reactor) unset(box vector.Cuboid) {
 }

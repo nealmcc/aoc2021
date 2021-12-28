@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/nealmcc/aoc2021/pkg/queue"
 	"github.com/nealmcc/aoc2021/pkg/vector"
+	"github.com/nealmcc/aoc2021/pkg/vector/queue"
 )
 
 // main solves the both part 1 and part 2, reading from input.txt
