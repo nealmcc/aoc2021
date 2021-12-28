@@ -8,12 +8,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
-	"github.com/nealmcc/aoc2021/pkg/vector"
-	"go.uber.org/zap"
+	v "github.com/nealmcc/aoc2021/pkg/vector"
 )
 
 // main solves both part 1 and part 2, reading from input.txt
@@ -31,10 +29,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := part1(boot)
+	r := newReactor()
+
+	for _, op := range boot {
+		r.Do(op)
+	}
 	p1 := r.numLit()
 
-	r = part2(r, after)
+	for _, op := range after {
+		r.Do(op)
+	}
 	p2 := r.numLit()
 
 	end := time.Now()
@@ -44,24 +48,17 @@ func main() {
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
+// reactor is a collection of activated cells.
+type reactor struct {
+	cells map[v.Cuboid]struct{}
+}
+
 // instruction is one command for the reactor to execute.
 type instruction struct {
-	on     bool
+	isAdd  bool
 	x1, x2 int
 	y1, y2 int
 	z1, z2 int
-}
-
-// reactor is a collection of activated cells.
-type reactor struct {
-	cells map[vector.Cuboid]struct{}
-}
-
-func newReactor() *reactor {
-	r := reactor{
-		cells: make(map[vector.Cuboid]struct{}, 16),
-	}
-	return &r
 }
 
 // read the given input, returning an enhancement algorithm and an image.
@@ -127,8 +124,8 @@ func read(r io.Reader) (boot, after []instruction, err error) {
 		}
 
 		step := instruction{
-			on: len(opCode) == 2,
-			x1: x1, x2: x2, y1: y1, y2: y2, z1: z1, z2: z2,
+			isAdd: len(opCode) == 2,
+			x1:    x1, x2: x2, y1: y1, y2: y2, z1: z1, z2: z2,
 		}
 
 		if isBoot(step) {
@@ -145,85 +142,51 @@ func read(r io.Reader) (boot, after []instruction, err error) {
 	return boot, after, nil
 }
 
-// part1 solves part 1.
-func part1(boot []instruction, logs ...*zap.SugaredLogger) *reactor {
-	r := newReactor()
-
-	for _, act := range boot {
-		act.Do(r, logs...)
+func newReactor() *reactor {
+	r := reactor{
+		cells: make(map[v.Cuboid]struct{}, 16),
 	}
-	return r
+	return &r
 }
 
-// part2 solves part 2.
-func part2(r *reactor, after []instruction, logs ...*zap.SugaredLogger) *reactor {
-	sort.Slice(after, func(i, j int) bool {
-		return after[i].on && !after[j].on
-	})
+// Do performs the given instruction (either add or remove) on this reactor.
+func (r *reactor) Do(op instruction) {
+	block := v.Cuboid{
+		X1: op.x1, X2: op.x2,
+		Y1: op.y1, Y2: op.y2,
+		Z1: op.z1, Z2: op.z2,
+	}.Normal()
 
-	for _, act := range after {
-		act.Do(r, logs...)
+	block.X2++
+	block.Y2++
+	block.Z2++
+
+	r.remove(block)
+
+	if op.isAdd {
+		r.cells[block] = struct{}{}
 	}
-	return r
 }
 
-// Do performs this instruction on the reactor, and uses the optional logger(s)
-// to print debugging information.
-func (act instruction) Do(r *reactor, logs ...*zap.SugaredLogger) {
-	infow := func(msg string, keysAndValues ...interface{}) {
-		for _, l := range logs {
-			l.Infow(msg, keysAndValues...)
-		}
+// remove the given block from this reactor.
+func (r *reactor) remove(block v.Cuboid) {
+	keep := make([]v.Cuboid, 0, len(r.cells))
+	for curr := range r.cells {
+		_, left, _ := v.CuboidOuterJoin(curr, block)
+		delete(r.cells, curr)
+		keep = append(keep, left...)
 	}
 
-	infow("beginning action", "numCubes",
-		(act.x2-act.x1)*(act.y2-act.y1)*(act.z2-act.z1))
-
-	start := time.Now()
-
-	box := vector.Cuboid{
-		X1: act.x1, X2: act.x2,
-		Y1: act.y1, Y2: act.y2,
-		Z1: act.z1, Z2: act.z2,
+	for _, k := range keep {
+		r.cells[k] = struct{}{}
 	}
-	if act.on {
-		r.set(box)
-	} else {
-		r.unset(box)
-	}
-
-	end := time.Now()
-	infow("finished action", "time spent", end.Sub(start))
 }
 
-// numLit returns the number of lit cells within the reactor.
+// numLit returns the number of active cells.
 func (r reactor) numLit() int {
 	var sum int
 	for box := range r.cells {
 		sum += box.Volume()
 	}
 	return sum
-}
-
-func (r *reactor) set(newCell vector.Cuboid) {
-	keep := make([]vector.Cuboid, 16)
-
-	for cell := range r.cells {
-		overlap, ok := cell.Intersect(newCell)
-		if !ok {
-			continue
-		}
-		delete(r.cells, cell)
-		boxes := cell.Remove(overlap)
-		for _, b := range boxes {
-			keep = append(keep, b)
-		}
-	}
-	r.cells[newCell] = struct{}{}
-	for _, cell := range keep {
-		r.cells[cell] = struct{}{}
-	}
-}
-
-func (r *reactor) unset(box vector.Cuboid) {
 }

@@ -1,20 +1,20 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 var examples = []struct {
-	name    string
-	in      string
-	boot    []instruction
-	after   []instruction
-	cubesOn int
+	name   string
+	in     string
+	boot   []instruction
+	after  []instruction
+	p1, p2 int
 }{
 	{
 		name: "reboot steps",
@@ -24,99 +24,59 @@ off x=9..11,y=9..11,z=9..11
 on x=10..10,y=10..10,z=10..10
 `,
 		boot: []instruction{
-			{on: true, x1: 10, x2: 12, y1: 10, y2: 12, z1: 10, z2: 12},
-			{on: true, x1: 11, x2: 13, y1: 11, y2: 13, z1: 11, z2: 13},
-			{on: false, x1: 9, x2: 11, y1: 9, y2: 11, z1: 9, z2: 11},
-			{on: true, x1: 10, x2: 10, y1: 10, y2: 10, z1: 10, z2: 10},
+			{isAdd: true, x1: 10, x2: 12, y1: 10, y2: 12, z1: 10, z2: 12},
+			{isAdd: true, x1: 11, x2: 13, y1: 11, y2: 13, z1: 11, z2: 13},
+			{isAdd: false, x1: 9, x2: 11, y1: 9, y2: 11, z1: 9, z2: 11},
+			{isAdd: true, x1: 10, x2: 10, y1: 10, y2: 10, z1: 10, z2: 10},
 		},
-		after:   []instruction{},
-		cubesOn: 39,
+		after: []instruction{},
+		p1:    39,
+		p2:    39,
 	},
 	{
-		name: "a larger example",
-		in: `on x=-20..26,y=-36..17,z=-47..7
-on x=-20..33,y=-21..23,z=-26..28
-on x=-22..28,y=-29..23,z=-38..16
-on x=-46..7,y=-6..46,z=-50..-1
-on x=-49..1,y=-3..46,z=-24..28
-on x=2..47,y=-22..22,z=-23..27
-on x=-27..23,y=-28..26,z=-21..29
-on x=-39..5,y=-6..47,z=-3..44
-on x=-30..21,y=-8..43,z=-13..34
-on x=-22..26,y=-27..20,z=-29..19
-off x=-48..-32,y=26..41,z=-47..-37
-on x=-12..35,y=6..50,z=-50..-2
-off x=-48..-32,y=-32..-16,z=-15..-5
-on x=-18..26,y=-33..15,z=-7..46
-off x=-40..-22,y=-38..-28,z=23..41
-on x=-16..35,y=-41..10,z=-47..6
-off x=-32..-23,y=11..30,z=-14..3
-on x=-49..-5,y=-3..45,z=-29..18
-off x=18..30,y=-20..-8,z=-3..13
-on x=-41..9,y=-7..43,z=-33..15
-on x=-54112..-39298,y=-85059..-49293,z=-27449..7877
-on x=967..23432,y=45373..81175,z=27513..53682
+		name: "basic steps with negative numbers",
+		in: `on x=-2..2,y=-2..2,z=-2..2
+off x=-1..1,y=-1..1,z=-1..1
+on x=-300..-300,y=3..3,z=-3..-3
 `,
 		boot: []instruction{
-			{on: true, x1: -20, x2: 26, y1: -36, y2: 17, z1: -47, z2: 7},
-			{on: true, x1: -20, x2: 33, y1: -21, y2: 23, z1: -26, z2: 28},
-			{on: true, x1: -22, x2: 28, y1: -29, y2: 23, z1: -38, z2: 16},
-			{on: true, x1: -46, x2: 7, y1: -6, y2: 46, z1: -50, z2: -1},
-			{on: true, x1: -49, x2: 1, y1: -3, y2: 46, z1: -24, z2: 28},
-			{on: true, x1: 2, x2: 47, y1: -22, y2: 22, z1: -23, z2: 27},
-			{on: true, x1: -27, x2: 23, y1: -28, y2: 26, z1: -21, z2: 29},
-			{on: true, x1: -39, x2: 5, y1: -6, y2: 47, z1: -3, z2: 44},
-			{on: true, x1: -30, x2: 21, y1: -8, y2: 43, z1: -13, z2: 34},
-			{on: true, x1: -22, x2: 26, y1: -27, y2: 20, z1: -29, z2: 19},
-			{on: false, x1: -48, x2: -32, y1: 26, y2: 41, z1: -47, z2: -37},
-			{on: true, x1: -12, x2: 35, y1: 6, y2: 50, z1: -50, z2: -2},
-			{on: false, x1: -48, x2: -32, y1: -32, y2: -16, z1: -15, z2: -5},
-			{on: true, x1: -18, x2: 26, y1: -33, y2: 15, z1: -7, z2: 46},
-			{on: false, x1: -40, x2: -22, y1: -38, y2: -28, z1: 23, z2: 41},
-			{on: true, x1: -16, x2: 35, y1: -41, y2: 10, z1: -47, z2: 6},
-			{on: false, x1: -32, x2: -23, y1: 11, y2: 30, z1: -14, z2: 3},
-			{on: true, x1: -49, x2: -5, y1: -3, y2: 45, z1: -29, z2: 18},
-			{on: false, x1: 18, x2: 30, y1: -20, y2: -8, z1: -3, z2: 13},
-			{on: true, x1: -41, x2: 9, y1: -7, y2: 43, z1: -33, z2: 15},
+			{isAdd: true, x1: -2, x2: 2, y1: -2, y2: 2, z1: -2, z2: 2},  // 5x5x5
+			{isAdd: false, x1: -1, x2: 1, y1: -1, y2: 1, z1: -1, z2: 1}, // 3x3x3
 		},
 		after: []instruction{
-			{on: true, x1: -54112, x2: -39298, y1: -85059, y2: -49293, z1: -27449, z2: 7877},
-			{on: true, x1: 967, x2: 23432, y1: 45373, y2: 81175, z1: 27513, z2: 53682},
+			{isAdd: true, x1: -300, x2: -300, y1: 3, y2: 3, z1: -3, z2: -3}, // 1x1x1
 		},
-		cubesOn: 590784,
+		p1: 98,
+		p2: 99,
 	},
-}
-
-func TestRead(t *testing.T) {
-	for _, tc := range examples {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			r, a := require.New(t), assert.New(t)
-			boot, after, err := read(strings.NewReader(tc.in))
-			r.NoError(err)
-
-			a.Equal(tc.boot, boot)
-			a.Equal(tc.after, after)
-		})
-	}
-}
-
-func TestPart1(t *testing.T) {
-	for _, tc := range examples {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			log := zaptest.NewLogger(t).Sugar()
-			r := part1(tc.boot, log)
-			got := r.numLit()
-			assert.Equal(t, tc.cubesOn, got)
-		})
-	}
-}
-
-func TestPart2(t *testing.T) {
-	t.SkipNow()
-
-	boot, after, err := read(strings.NewReader(`on x=-5..47,y=-31..22,z=-19..33
+	{
+		name: "27 cubes around the origin minus the zero axes",
+		in: `on x=-1..-1,y=-1..1,z=-1..1
+on x=0..0,y=-1..1,z=-1..1
+on x=1..1,y=-1..1,z=-1..1
+on x=-1..1,y=1..1,z=-1..1
+off x=0..0,y=-5000..5000,z=-5000..5000
+off x=-5000..5000,y=0..0,z=-5000..5000
+off x=-5000..5000,y=-5000..5000,z=0..0
+`,
+		boot: []instruction{
+			{isAdd: true, x1: -1, x2: -1, y1: -1, y2: 1, z1: -1, z2: 1},
+			{isAdd: true, x1: 0, x2: 0, y1: -1, y2: 1, z1: -1, z2: 1},
+			{isAdd: true, x1: 1, x2: 1, y1: -1, y2: 1, z1: -1, z2: 1},
+			// setting some of the same values again, but from a different angle
+			{isAdd: true, x1: -1, x2: 1, y1: 1, y2: 1, z1: -1, z2: 1},
+		},
+		after: []instruction{
+			{y1: -5000, y2: 5000, z1: -5000, z2: 5000},
+			{x1: -5000, x2: 5000, z1: -5000, z2: 5000},
+			{x1: -5000, x2: 5000, y1: -5000, y2: 5000},
+		},
+		p1: 27,
+		p2: 8,
+	},
+	{
+		name: "part 2 example",
+		in: `on x=-5..47,y=-31..22,z=-19..33
 on x=-44..5,y=-27..21,z=-14..35
 on x=-49..-1,y=-11..42,z=-10..38
 on x=-20..34,y=-40..6,z=-44..1
@@ -176,13 +136,132 @@ off x=-27365..46395,y=31009..98017,z=15428..76570
 off x=-70369..-16548,y=22648..78696,z=-1892..86821
 on x=-53470..21291,y=-120233..-33476,z=-44150..38147
 off x=-93533..-4276,y=-16170..68771,z=-104985..-24507
-`))
+`,
+		boot: []instruction{
+			{isAdd: true, x1: -5, x2: 47, y1: -31, y2: 22, z1: -19, z2: 33},
+			{isAdd: true, x1: -44, x2: 5, y1: -27, y2: 21, z1: -14, z2: 35},
+			{isAdd: true, x1: -49, x2: -1, y1: -11, y2: 42, z1: -10, z2: 38},
+			{isAdd: true, x1: -20, x2: 34, y1: -40, y2: 6, z1: -44, z2: 1},
+			{isAdd: false, x1: 26, x2: 39, y1: 40, y2: 50, z1: -2, z2: 11},
+			{isAdd: true, x1: -41, x2: 5, y1: -41, y2: 6, z1: -36, z2: 8},
+			{isAdd: false, x1: -43, x2: -33, y1: -45, y2: -28, z1: 7, z2: 25},
+			{isAdd: true, x1: -33, x2: 15, y1: -32, y2: 19, z1: -34, z2: 11},
+			{isAdd: false, x1: 35, x2: 47, y1: -46, y2: -34, z1: -11, z2: 5},
+			{isAdd: true, x1: -14, x2: 36, y1: -6, y2: 44, z1: -16, z2: 29},
+		},
+		after: []instruction{
+			{isAdd: true, x1: -57795, x2: -6158, y1: 29564, y2: 72030, z1: 20435, z2: 90618},
+			{isAdd: true, x1: 36731, x2: 105352, y1: -21140, y2: 28532, z1: 16094, z2: 90401},
+			{isAdd: true, x1: 30999, x2: 107136, y1: -53464, y2: 15513, z1: 8553, z2: 71215},
+			{isAdd: true, x1: 13528, x2: 83982, y1: -99403, y2: -27377, z1: -24141, z2: 23996},
+			{isAdd: true, x1: -72682, x2: -12347, y1: 18159, y2: 111354, z1: 7391, z2: 80950},
+			{isAdd: true, x1: -1060, x2: 80757, y1: -65301, y2: -20884, z1: -103788, z2: -16709},
+			{isAdd: true, x1: -83015, x2: -9461, y1: -72160, y2: -8347, z1: -81239, z2: -26856},
+			{isAdd: true, x1: -52752, x2: 22273, y1: -49450, y2: 9096, z1: 54442, z2: 119054},
+			{isAdd: true, x1: -29982, x2: 40483, y1: -108474, y2: -28371, z1: -24328, z2: 38471},
+			{isAdd: true, x1: -4958, x2: 62750, y1: 40422, y2: 118853, z1: -7672, z2: 65583},
+			{isAdd: true, x1: 55694, x2: 108686, y1: -43367, y2: 46958, z1: -26781, z2: 48729},
+			{isAdd: true, x1: -98497, x2: -18186, y1: -63569, y2: 3412, z1: 1232, z2: 88485},
+			{isAdd: true, x1: -726, x2: 56291, y1: -62629, y2: 13224, z1: 18033, z2: 85226},
+			{isAdd: true, x1: -110886, x2: -34664, y1: -81338, y2: -8658, z1: 8914, z2: 63723},
+			{isAdd: true, x1: -55829, x2: 24974, y1: -16897, y2: 54165, z1: -121762, z2: -28058},
+			{isAdd: true, x1: -65152, x2: -11147, y1: 22489, y2: 91432, z1: -58782, z2: 1780},
+			{isAdd: true, x1: -120100, x2: -32970, y1: -46592, y2: 27473, z1: -11695, z2: 61039},
+			{isAdd: true, x1: -18631, x2: 37533, y1: -124565, y2: -50804, z1: -35667, z2: 28308},
+			{isAdd: true, x1: -57817, x2: 18248, y1: 49321, y2: 117703, z1: 5745, z2: 55881},
+			{isAdd: true, x1: 14781, x2: 98692, y1: -1341, y2: 70827, z1: 15753, z2: 70151},
+			{isAdd: true, x1: -34419, x2: 55919, y1: -19626, y2: 40991, z1: 39015, z2: 114138},
+			{isAdd: true, x1: -60785, x2: 11593, y1: -56135, y2: 2999, z1: -95368, z2: -26915},
+			{isAdd: true, x1: -32178, x2: 58085, y1: 17647, y2: 101866, z1: -91405, z2: -8878},
+			{isAdd: true, x1: -53655, x2: 12091, y1: 50097, y2: 105568, z1: -75335, z2: -4862},
+			{isAdd: true, x1: -111166, x2: -40997, y1: -71714, y2: 2688, z1: 5609, z2: 50954},
+			{isAdd: true, x1: -16602, x2: 70118, y1: -98693, y2: -44401, z1: 5197, z2: 76897},
+			{isAdd: true, x1: 16383, x2: 101554, y1: 4615, y2: 83635, z1: -44907, z2: 18747},
+			{isAdd: false, x1: -95822, x2: -15171, y1: -19987, y2: 48940, z1: 10804, z2: 104439},
+			{isAdd: true, x1: -89813, x2: -14614, y1: 16069, y2: 88491, z1: -3297, z2: 45228},
+			{isAdd: true, x1: 41075, x2: 99376, y1: -20427, y2: 49978, z1: -52012, z2: 13762},
+			{isAdd: true, x1: -21330, x2: 50085, y1: -17944, y2: 62733, z1: -112280, z2: -30197},
+			{isAdd: true, x1: -16478, x2: 35915, y1: 36008, y2: 118594, z1: -7885, z2: 47086},
+			{isAdd: false, x1: -98156, x2: -27851, y1: -49952, y2: 43171, z1: -99005, z2: -8456},
+			{isAdd: false, x1: 2032, x2: 69770, y1: -71013, y2: 4824, z1: 7471, z2: 94418},
+			{isAdd: true, x1: 43670, x2: 120875, y1: -42068, y2: 12382, z1: -24787, z2: 38892},
+			{isAdd: false, x1: 37514, x2: 111226, y1: -45862, y2: 25743, z1: -16714, z2: 54663},
+			{isAdd: false, x1: 25699, x2: 97951, y1: -30668, y2: 59918, z1: -15349, z2: 69697},
+			{isAdd: false, x1: -44271, x2: 17935, y1: -9516, y2: 60759, z1: 49131, z2: 112598},
+			{isAdd: true, x1: -61695, x2: -5813, y1: 40978, y2: 94975, z1: 8655, z2: 80240},
+			{isAdd: false, x1: -101086, x2: -9439, y1: -7088, y2: 67543, z1: 33935, z2: 83858},
+			{isAdd: false, x1: 18020, x2: 114017, y1: -48931, y2: 32606, z1: 21474, z2: 89843},
+			{isAdd: false, x1: -77139, x2: 10506, y1: -89994, y2: -18797, z1: -80, z2: 59318},
+			{isAdd: false, x1: 8476, x2: 79288, y1: -75520, y2: 11602, z1: -96624, z2: -24783},
+			{isAdd: true, x1: -47488, x2: -1262, y1: 24338, y2: 100707, z1: 16292, z2: 72967},
+			{isAdd: false, x1: -84341, x2: 13987, y1: 2429, y2: 92914, z1: -90671, z2: -1318},
+			{isAdd: false, x1: -37810, x2: 49457, y1: -71013, y2: -7894, z1: -105357, z2: -13188},
+			{isAdd: false, x1: -27365, x2: 46395, y1: 31009, y2: 98017, z1: 15428, z2: 76570},
+			{isAdd: false, x1: -70369, x2: -16548, y1: 22648, y2: 78696, z1: -1892, z2: 86821},
+			{isAdd: true, x1: -53470, x2: 21291, y1: -120233, y2: -33476, z1: -44150, z2: 38147},
+			{isAdd: false, x1: -93533, x2: -4276, y1: -16170, y2: 68771, z1: -104985, z2: -24507},
+		},
+		p1: 474140,
+		p2: 2758514936282235,
+	},
+}
 
-	log := zaptest.NewLogger(t).Sugar()
+func TestRead(t *testing.T) {
+	for _, tc := range examples {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			r, a := require.New(t), assert.New(t)
+			boot, after, err := read(strings.NewReader(tc.in))
+			r.NoError(err)
+			a.Equal(tc.boot, boot)
+			a.Equal(tc.after, after)
+		})
+	}
+}
 
-	require.NoError(t, err)
-	r := part1(boot)
-	r = part2(r, after, log)
-	got := r.numLit()
-	assert.Equal(t, 2758514936282235, got)
+func TestDo(t *testing.T) {
+	for _, tc := range examples {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			r := newReactor()
+			for _, op := range tc.boot {
+				r.Do(op)
+			}
+			p1 := r.numLit()
+			assert.Equal(t, tc.p1, p1, "part 1")
+			for _, op := range tc.after {
+				r.Do(op)
+			}
+			p2 := r.numLit()
+			assert.Equal(t, tc.p2, p2, "part 2")
+		})
+	}
+}
+
+// _testResult prevents the CPU from optimising away the benchmark calculation.
+var _testResult int
+
+func BenchmarkDo(b *testing.B) {
+	in, err := os.Open("input.txt")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer in.Close()
+
+	boot, after, err := read(in)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := newReactor()
+		for _, op := range boot {
+			r.Do(op)
+		}
+		for _, op := range after {
+			r.Do(op)
+		}
+		_testResult = r.numLit()
+	}
 }
