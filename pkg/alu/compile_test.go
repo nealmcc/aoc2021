@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNew(t *testing.T) {
+func TestCompile(t *testing.T) {
 	tt := []struct {
 		name      string
 		in        string
@@ -86,31 +86,14 @@ func TestNew(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r, a := require.New(t), assert.New(t)
-			got, err := New([]byte(tc.in))
+			got, err := Compile([]byte(tc.in))
 			if tc.wantErr {
 				r.Error(err)
 				return
 			}
 
 			r.NoError(err)
-			a.Equal(tc.wantCount, len(got.code))
-		})
-	}
-}
-
-func TestRun(t *testing.T) {
-	tt := []struct {
-		name  string
-		code  string
-		input int
-		want  int
-	}{}
-
-	for _, tc := range tt {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			/* test code */
+			a.Equal(tc.wantCount, len(got))
 		})
 	}
 }
