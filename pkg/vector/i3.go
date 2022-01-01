@@ -9,60 +9,58 @@ type I3 struct {
 	X, Y, Z int
 }
 
-// I3RotX90 rotates the given vector 90 degrees about the x-axis.
-func I3RotX90(v I3) I3 {
-	rot, _ := I3Transform(v, [][]int{
+// ReflectXY reflects this vector through the x-y plane.
+func (v *I3) ReflectXY() {
+	v.Z *= -1
+}
+
+// RotX90 rotates this vector 90 degrees about the x-axis.
+func (v *I3) RotX90() {
+	v.Transform([][]int{
 		{1, 0, 0},  // x = (1,       0,       0)
 		{0, 0, -1}, // y = (0, cos(90), -sin(90))
 		{0, 1, 0},  // z = (0, sin(90), cos(90))
 	})
-	return rot
 }
 
-// I3RotX90 rotates the given vector 90 degrees about the x-axis.
-func I3RotY90(v I3) I3 {
-	rot, _ := I3Transform(v, [][]int{
+// I3RotX90 rotates this vector 90 degrees about the x-axis.
+func (v *I3) RotY90() {
+	v.Transform([][]int{
 		{0, 0, 1},  // x = (cos(90),  0,  sin(90))
 		{0, 1, 0},  // y = (      0,  1,       0)
 		{-1, 0, 0}, // z = (-sin(90), 0, cos(90))
 	})
-	return rot
 }
 
-// I3RotZ90 rotates the given vector 90-degrees about the z axis.
-func I3RotZ90(v I3) I3 {
-	rot, _ := I3Transform(v, [][]int{
+// RotZ90 rotates this vector 90-degrees about the z axis.
+func (v *I3) RotZ90() {
+	v.Transform([][]int{
 		{0, -1, 0}, // x = (cos(90), -sin(90), 0)
 		{1, 0, 0},  // y = (sin(90),  cos(90), 0)
 		{0, 0, 1},  // z = (      0,        0, 1)
 	})
-	return rot
 }
 
-// I3ReflectXY reflects the given vector about the x-y plane.
-func I3ReflectXY(v I3) I3 {
-	ref, _ := I3Transform(v, [][]int{
-		{1, 0, 0},  // x
-		{0, 1, 0},  // y
-		{0, 0, -1}, // z
-	})
-
-	return ref
-}
-
-// I3Transform applies the given linear transformation m to the vector v.
+// I3Transform applies the given linear transformation m to this vector.
 // see: https://www.khanacademy.org/math/linear-algebra/matrix-transformations
-func I3Transform(v I3, m [][]int) (I3, error) {
+func (v *I3) Transform(m [][]int) error {
 	c, err := CrossProduct(m, [][]int{{v.X}, {v.Y}, {v.Z}})
 	if err != nil {
-		return I3{}, err
+		return err
 	}
 
-	return I3{
-		X: c[0][0],
-		Y: c[1][0],
-		Z: c[2][0],
-	}, nil
+	v.X = c[0][0]
+	v.Y = c[1][0]
+	v.Z = c[2][0]
+
+	return nil
+}
+
+// Translate this vector by the given amount.
+func (v *I3) Translate(t I3) {
+	v.X += t.X
+	v.Y += t.Y
+	v.Z += t.Z
 }
 
 // CrossProduct multiples matrix a by matrix b.

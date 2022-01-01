@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestI3RotX90(t *testing.T) {
+func TestRotX90(t *testing.T) {
 	tt := []struct {
 		name string
 		in   I3
@@ -33,13 +33,14 @@ func TestI3RotX90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := I3RotX90(tc.in)
-			assert.Equal(t, tc.want, got)
+			v := tc.in
+			v.RotX90()
+			assert.Equal(t, tc.want, v)
 		})
 	}
 }
 
-func TestI3RotY90(t *testing.T) {
+func TestRotY90(t *testing.T) {
 	tt := []struct {
 		name string
 		in   I3
@@ -66,8 +67,9 @@ func TestI3RotY90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := I3RotY90(tc.in)
-			assert.Equal(t, tc.want, got)
+			v := tc.in
+			v.RotY90()
+			assert.Equal(t, tc.want, v)
 		})
 	}
 }
@@ -99,8 +101,9 @@ func TestI3RotZ90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := I3RotZ90(tc.in)
-			assert.Equal(t, tc.want, got)
+			v := tc.in
+			v.RotZ90()
+			assert.Equal(t, tc.want, v)
 		})
 	}
 }
@@ -132,8 +135,9 @@ func TestI3ReflectXY(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := I3ReflectXY(tc.in)
-			assert.Equal(t, tc.want, got)
+			v := tc.in
+			v.ReflectXY()
+			assert.Equal(t, tc.want, v)
 		})
 	}
 }
