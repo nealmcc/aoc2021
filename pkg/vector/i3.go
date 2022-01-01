@@ -86,3 +86,37 @@ func CrossProduct(a, b [][]int) ([][]int, error) {
 
 	return out, nil
 }
+
+// Bounds finds a bounding box that encloses all of the given coordinates.
+func Bounds(coords []I3) Cuboid {
+	const high int = 1<<63 - 1
+	const low int = -1 * high
+
+	x1, y1, z1 := high, high, high
+	x2, y2, z2 := low, low, low
+
+	for _, pos := range coords {
+		if pos.X < x1 {
+			x1 = pos.X
+		}
+		if pos.X > x2 {
+			x2 = pos.X
+		}
+
+		if pos.Y < y1 {
+			y1 = pos.Y
+		}
+		if pos.Y > y2 {
+			y2 = pos.Y
+		}
+
+		if pos.Z < z1 {
+			z1 = pos.Z
+		}
+		if pos.Z > z2 {
+			z2 = pos.Z
+		}
+	}
+
+	return Cuboid{X1: x1, Y1: y1, Z1: z1, X2: x2, Y2: y2, Z2: z2}
+}

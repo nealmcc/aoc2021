@@ -28,21 +28,27 @@ var examples = []struct {
 `,
 		[]sensor{
 			{
-				id:     0,
-				facing: identity(),
-				beacons: []v.I3{
-					{X: 0, Y: 2, Z: 0},
-					{X: 4, Y: 1, Z: 0},
-					{X: 3, Y: 3, Z: 0},
+				id:  0,
+				pos: v.I3{X: 0, Y: -1},
+				beacons: beaconSet{
+					extents: v.I3{X: 4, Y: 2},
+					b: []v.I3{
+						{X: 0, Y: 1},
+						{X: 3, Y: 2},
+						{X: 4, Y: 0},
+					},
 				},
 			},
 			{
-				id:     1,
-				facing: identity(),
-				beacons: []v.I3{
-					{X: -1, Y: -1, Z: 0},
-					{X: -5, Y: 0, Z: 0},
-					{X: -2, Y: 1, Z: 0},
+				id:  1,
+				pos: v.I3{X: 5, Y: 1},
+				beacons: beaconSet{
+					extents: v.I3{X: 4, Y: 2},
+					b: []v.I3{
+						{X: 0, Y: 1},
+						{X: 3, Y: 2},
+						{X: 4, Y: 0},
+					},
 				},
 			},
 		},
@@ -59,8 +65,8 @@ func TestRead(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.sensors, got)
 
-			for _, s := range got {
-				t.Log(s.String())
+			for _, sensor := range got {
+				t.Log(sensor.String())
 			}
 		})
 	}

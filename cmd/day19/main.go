@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,7 +52,7 @@ func read(r io.Reader) ([]sensor, error) {
 
 		switch {
 		case len(line) == 0:
-			sensors = append(sensors, sense)
+			sensors = append(sensors, sense.normal())
 
 		case line[1] == '-':
 			line = bytes.TrimPrefix(line, []byte("--- scanner "))
@@ -61,9 +62,10 @@ func read(r io.Reader) ([]sensor, error) {
 				return nil, err
 			}
 			sense = sensor{
-				id:      id,
-				facing:  identity(),
-				beacons: make([]v.I3, 0, 16),
+				id: id,
+				beacons: beaconSet{
+					b: make([]v.I3, 0, 16),
+				},
 			}
 
 		default:
@@ -86,10 +88,10 @@ func read(r io.Reader) ([]sensor, error) {
 				return nil, err
 			}
 
-			sense.beacons = append(sense.beacons, v.I3{X: x, Y: y, Z: z})
+			sense.beacons.b = append(sense.beacons.b, v.I3{X: x, Y: y, Z: z})
 		}
 	}
-	sensors = append(sensors, sense)
+	sensors = append(sensors, sense.normal())
 
 	if err := s.Err(); err != nil {
 		return nil, err
@@ -98,33 +100,25 @@ func read(r io.Reader) ([]sensor, error) {
 	return sensors, nil
 }
 
+// sensor is one sensor's perspective of the surrounding ocean.
 type sensor struct {
 	// id is the sensor's unique identifier
 	id int
 
-	// facing identifies the current rotation and facing of this sensor.
-	// by default, a sensor starts off unrotated or reflected.
-	facing transform
+	// beacons is the set of beacons that this sensor has located.
+	beacons beaconSet
 
-	// pos is this sensor's position, relative to an arbitrary origin.
+	// pos is the position of this sensor relative to the origin of its beaconSet.
 	pos v.I3
-
-	// beacons is the set of beacons that this sensor has located,
-	// expressed relative to the sensor's location.
-	beacons []v.I3
 }
 
-// transform is a 3x3 transformation matrix.
-type transform = [][]int
-
-// identity is the identity matrix in I3. Sensors start with this as their
-// assumed facing.
-func identity() transform {
-	return transform{
-		{1, 0, 0},
-		{0, 1, 0},
-		{0, 0, 1},
-	}
+// normal puts this sensor into normal form. A sensor is in normal form when
+// the beacons' lower bound is 0,0,0 and all the beacons are sorted
+// in ascending order by their X, Y and then Z coordinates.
+func (s sensor) normal() sensor {
+	move := s.beacons.standardise()
+	s.pos.Translate(move)
+	return s
 }
 
 func (s sensor) String() string {
@@ -132,12 +126,48 @@ func (s sensor) String() string {
 
 	b.WriteString(fmt.Sprintf("--- scanner %d ---\n", s.id))
 	b.WriteString(fmt.Sprintf("pos: %v\n", s.pos))
-	b.WriteString(fmt.Sprintf("transform: %+v\n", s.facing))
-	for _, bn := range s.beacons {
+	for _, bn := range s.beacons.b {
 		b.WriteString(fmt.Sprintf("%v\n", bn))
 	}
 
 	return b.String()
+}
+
+// beaconSet defines a cuboid region of the ocean, and the set of beacons
+// in that region.
+type beaconSet struct {
+	// extents defines the size of this region of the ocean.
+	extents v.I3
+
+	// b is the list of beacons in this set
+	b []v.I3
+}
+
+// standardise the given set of beacons by arranging them within a box with
+// 0,0,0 at the lower corner, updating the extents of the beaconSet, and sorting
+// them in increasing order by their X, Y and Z coordinates.  Returns a vector
+// which is how much each beacon was translated by, so that any external frame
+// of reference to this beaconSet can be adjusted accordingly.
+func (bs *beaconSet) standardise() v.I3 {
+	sort.Sort(byXYZ(bs.b))
+
+	bounds := v.Bounds(bs.b)
+
+	move := v.I3{
+		X: -1 * bounds.X1,
+		Y: -1 * bounds.Y1,
+		Z: -1 * bounds.Z1,
+	}
+
+	for i := range bs.b {
+		bs.b[i].Translate(move)
+	}
+
+	bs.extents.X = bounds.X2 - bounds.X1
+	bs.extents.Y = bounds.Y2 - bounds.Y1
+	bs.extents.Z = bounds.Z2 - bounds.Z1
+
+	return move
 }
 
 func part1(sensors []sensor) int {
