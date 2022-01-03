@@ -15,21 +15,26 @@ var _ sort.Interface = byXYZ{}
 func (s byXYZ) Len() int      { return len(s) }
 func (s byXYZ) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s byXYZ) Less(i, j int) bool {
-	if s[i].X < s[j].X {
+	return isLess(s[i], s[j])
+}
+
+// isLess returns true iff a < b based on the X, then Y, then Z coordinates.
+func isLess(a, b v.I3) bool {
+	if a.X < b.X {
 		return true
 	}
 
-	if s[i].X > s[j].X {
+	if a.X > b.X {
 		return false
 	}
 
-	if s[i].Y < s[j].Y {
+	if a.Y < b.Y {
 		return true
 	}
 
-	if s[i].Y > s[j].Y {
+	if a.Y > b.Y {
 		return false
 	}
 
-	return s[i].Z < s[j].Z
+	return a.Z < b.Z
 }

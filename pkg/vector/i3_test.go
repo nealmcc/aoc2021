@@ -33,8 +33,7 @@ func TestRotX90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			v := tc.in
-			v.RotX90()
+			v := tc.in.RotX90()
 			assert.Equal(t, tc.want, v)
 		})
 	}
@@ -67,8 +66,7 @@ func TestRotY90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			v := tc.in
-			v.RotY90()
+			v := tc.in.RotY90()
 			assert.Equal(t, tc.want, v)
 		})
 	}
@@ -101,42 +99,7 @@ func TestI3RotZ90(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			v := tc.in
-			v.RotZ90()
-			assert.Equal(t, tc.want, v)
-		})
-	}
-}
-
-func TestI3ReflectXY(t *testing.T) {
-	tt := []struct {
-		name string
-		in   I3
-		want I3
-	}{
-		{
-			"z unit vector becomes -z unit vector",
-			I3{Z: 1},
-			I3{Z: -1},
-		},
-		{
-			"x and y unit vectors are unchanged",
-			I3{X: 1, Y: 1},
-			I3{X: 1, Y: 1},
-		},
-		{
-			"all three dimensions at once",
-			I3{X: 3, Y: -5, Z: 7},
-			I3{X: 3, Y: -5, Z: -7},
-		},
-	}
-
-	for _, tc := range tt {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			v := tc.in
-			v.ReflectXY()
+			v := tc.in.RotZ90()
 			assert.Equal(t, tc.want, v)
 		})
 	}

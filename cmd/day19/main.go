@@ -2,19 +2,26 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	v "github.com/nealmcc/aoc2021/pkg/vector"
 )
+
+// block is a cuboid region of the ocean which contains a collection of beacons,
+// and one or more sensors.
+// The coordinate system of the block is internally consistent.
+type block struct {
+	// Sensors is the set of sensors which have combined to observe this block.
+	Sensors map[int]v.I3
+
+	// Beacons is the collection of beacons in this block.
+	Beacons []v.I3
+}
 
 // main solves both part 1 and part 2, reading from input.txt
 func main() {
@@ -26,12 +33,12 @@ func main() {
 
 	start := time.Now()
 
-	sensors, err := read(in)
+	blocks, err := read(in)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	p1 := part1(sensors)
+	p1 := part1(blocks)
 
 	end := time.Now()
 
@@ -40,142 +47,287 @@ func main() {
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
-// read the given input, returning all the sensors.
-func read(r io.Reader) ([]sensor, error) {
+// read the given input, returning the blocks of ocean that were scanned.
+func read(r io.Reader) ([]block, error) {
 	s := bufio.NewScanner(r)
 
-	sensors := make([]sensor, 0, 8)
+	blocks := make([]block, 0, 8)
 
-	var sense sensor
+	var (
+		id int
+		b  block
+	)
 	for s.Scan() {
 		line := s.Bytes()
 
 		switch {
 		case len(line) == 0:
-			sensors = append(sensors, sense.normal())
+			blocks = append(blocks, b)
 
 		case line[1] == '-':
-			line = bytes.TrimPrefix(line, []byte("--- scanner "))
-			line = bytes.TrimSuffix(line, []byte(" ---"))
-			id, err := strconv.Atoi(string(line))
-			if err != nil {
-				return nil, err
+			b = block{
+				Sensors: map[int]v.I3{id: {}},
+				Beacons: make([]v.I3, 0, 16),
 			}
-			sense = sensor{
-				id: id,
-				beacons: beaconSet{
-					b: make([]v.I3, 0, 16),
-				},
-			}
+			id++
 
 		default:
-			parts := bytes.Split(line, []byte{','})
-			if len(parts) != 3 {
-				return nil, errors.New("malformed input")
-			}
-
-			x, err := strconv.Atoi(string(parts[0]))
+			pos, err := v.ParseI3(line)
 			if err != nil {
 				return nil, err
 			}
-			y, err := strconv.Atoi(string(parts[1]))
-			if err != nil {
-				return nil, err
-			}
-
-			z, err := strconv.Atoi(string(parts[2]))
-			if err != nil {
-				return nil, err
-			}
-
-			sense.beacons.b = append(sense.beacons.b, v.I3{X: x, Y: y, Z: z})
+			b.Beacons = append(b.Beacons, pos)
 		}
 	}
-	sensors = append(sensors, sense.normal())
+	blocks = append(blocks, b)
 
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
 
-	return sensors, nil
+	return blocks, nil
 }
 
-// sensor is one sensor's perspective of the surrounding ocean.
-type sensor struct {
-	// id is the sensor's unique identifier
-	id int
-
-	// beacons is the set of beacons that this sensor has located.
-	beacons beaconSet
-
-	// pos is the position of this sensor relative to the origin of its beaconSet.
-	pos v.I3
-}
-
-// normal puts this sensor into normal form. A sensor is in normal form when
-// the beacons' lower bound is 0,0,0 and all the beacons are sorted
-// in ascending order by their X, Y and then Z coordinates.
-func (s sensor) normal() sensor {
-	move := s.beacons.standardise()
-	s.pos.Translate(move)
-	return s
-}
-
-func (s sensor) String() string {
-	var b strings.Builder
-
-	b.WriteString(fmt.Sprintf("--- scanner %d ---\n", s.id))
-	b.WriteString(fmt.Sprintf("pos: %v\n", s.pos))
-	for _, bn := range s.beacons.b {
-		b.WriteString(fmt.Sprintf("%v\n", bn))
-	}
-
-	return b.String()
-}
-
-// beaconSet defines a cuboid region of the ocean, and the set of beacons
-// in that region.
-type beaconSet struct {
-	// extents defines the size of this region of the ocean.
-	extents v.I3
-
-	// b is the list of beacons in this set
-	b []v.I3
-}
-
-// standardise the given set of beacons by arranging them within a box with
-// 0,0,0 at the lower corner, updating the extents of the beaconSet, and sorting
-// them in increasing order by their X, Y and Z coordinates.  Returns a vector
-// which is how much each beacon was translated by, so that any external frame
-// of reference to this beaconSet can be adjusted accordingly.
-func (bs *beaconSet) standardise() v.I3 {
-	sort.Sort(byXYZ(bs.b))
-
-	bounds := v.Bounds(bs.b)
-
-	move := v.I3{
-		X: -1 * bounds.X1,
-		Y: -1 * bounds.Y1,
-		Z: -1 * bounds.Z1,
-	}
-
-	for i := range bs.b {
-		bs.b[i].Translate(move)
-	}
-
-	bs.extents.X = bounds.X2 - bounds.X1
-	bs.extents.Y = bounds.Y2 - bounds.Y1
-	bs.extents.Z = bounds.Z2 - bounds.Z1
-
-	return move
-}
-
-func part1(sensors []sensor) int {
-	// assume the first sensor is facing the 'normal' way.
-	// loop through each of the remaining beacons:
-	//   - rotate that other beacon until it 'fits' with this one.
-	//   - that is, it must have some rotation, reflection and translation such
+func part1(blocks []block) int {
+	// assume the first block is facing the 'normal' way.
+	// loop through each of the remaining blocks:
+	//   - rotate that other block until it 'fits' with this one.
+	//   - that is, it must have some rotation and reflection such
 	//     that at least 12 of its beacons line up with the cumulative group.
-	//   - find that rotation and translation, and
+	//   - find that rotation and translation, apply it to the other block,
+	//     and merge them together.
 	return 0
+}
+
+// transform creates a copy of this block, with all of its vectors transformed
+// using the given linear transformation
+func (box block) transform(m v.Matrix) block {
+	b2 := block{
+		Sensors: make(map[int]v.I3, len(box.Sensors)),
+		Beacons: make([]v.I3, len(box.Beacons)),
+	}
+	for i, bn := range box.Beacons {
+		bn2, _ := bn.Transform(m)
+		b2.Beacons[i] = bn2
+	}
+
+	for id, s := range box.Sensors {
+		s2, _ := s.Transform(m)
+		b2.Sensors[id] = s2
+	}
+
+	return b2
+}
+
+// translate makes a copy of this box that has been repositioned by delta.
+func (box block) translate(delta v.I3) block {
+	b2 := block{
+		Sensors: make(map[int]v.I3, len(box.Sensors)),
+		Beacons: make([]v.I3, len(box.Beacons)),
+	}
+
+	for i, bn := range box.Beacons {
+		b2.Beacons[i] = bn.Add(delta)
+	}
+
+	for id, s := range box.Sensors {
+		b2.Sensors[id] = s.Add(delta)
+	}
+
+	return b2
+}
+
+// rotateToMatch repeatedly attempts to rotate box2 until it can match box1,
+// or else there are no more rotations to attempt.  Returns the first
+// transformation of box2 that matches box1.
+// Returns false if no match can be found.
+func rotateToMatch(box1, box2 block, minQty int) (block, bool) {
+	sort.Sort(byXYZ(box1.Beacons))
+	sort.Sort(byXYZ(box2.Beacons))
+
+	for _, rot := range getRotations() {
+		box2t := box2.transform(rot)
+		sort.Sort(byXYZ(box2t.Beacons))
+
+		b1, b2 := box1.Beacons, box2t.Beacons
+
+		if offset, isMatch := beaconsMatch(b1, b2, minQty); isMatch {
+			box2t = box2t.translate(offset)
+			return box2t, true
+		}
+	}
+
+	return box2, false
+}
+
+// beaconsMatch finds the offset between the two slices of beacons, if they have
+// at least minQty elements in common when that offset added to all elements in
+// b2. Assumes that both slices are sorted, and that minQty is at least 1.
+func beaconsMatch(beacons1, beacons2 []v.I3, minQty int) (offset v.I3, isMatch bool) {
+	if len(beacons1) < minQty || len(beacons2) < minQty {
+		return v.I3{}, false
+	}
+
+	// choose a subset of the beacons in each slice so we can get an accurate
+	// offset even if the first element in either list doesn't match
+	for j := 0; j < len(beacons1)-minQty+1; j++ {
+		b1 := beacons1[j:]
+
+		for k := 0; k < len(beacons2)-minQty+1; k++ {
+			b2 := beacons2[k:]
+
+			// find the vector from b2 to b1
+			offset = b1[0].Subtract(b2[0])
+
+			// walk both lists at the same time, counting identical beacons
+			var i1, i2, n int
+			for i1 < len(b1) && i2 < len(b2) {
+				if b1[i1] == b2[i2].Add(offset) {
+					i1, i2, n = i1+1, i2+1, n+1
+					if n >= minQty {
+						return offset, true
+					}
+					continue
+				}
+
+				if isLess(b1[i1], b2[i2]) {
+					i1++
+					continue
+				}
+
+				i2++
+			}
+		}
+	}
+
+	return v.I3{}, false
+}
+
+// getRotations returns the 24 linear transformations that define each distinct
+// rotation in I3.
+func getRotations() []v.Matrix {
+	rot := []v.Matrix{
+		{
+			{1, 0, 0},
+			{0, 1, 0},
+			{0, 0, 1},
+		},
+		{
+			{1, 0, 0},
+			{0, 0, -1},
+			{0, 1, 0},
+		},
+		{
+			{1, 0, 0},
+			{0, -1, 0},
+			{0, 0, -1},
+		},
+		{
+			{1, 0, 0},
+			{0, 0, 1},
+			{0, -1, 0},
+		},
+		{
+			{0, -1, 0},
+			{1, 0, 0},
+			{0, 0, 1},
+		},
+		{
+			{0, 0, 1},
+			{1, 0, 0},
+			{0, 1, 0},
+		},
+		{
+			{0, 1, 0},
+			{1, 0, 0},
+			{0, 0, -1},
+		},
+		{
+			{0, 0, -1},
+			{1, 0, 0},
+			{0, -1, 0},
+		},
+		{
+			{-1, 0, 0},
+			{0, -1, 0},
+			{0, 0, 1},
+		},
+		{
+			{-1, 0, 0},
+			{0, 0, -1},
+			{0, -1, 0},
+		},
+		{
+			{-1, 0, 0},
+			{0, 1, 0},
+			{0, 0, -1},
+		},
+		{
+			{-1, 0, 0},
+			{0, 0, 1},
+			{0, 1, 0},
+		},
+		{
+			{0, 1, 0},
+			{-1, 0, 0},
+			{0, 0, 1},
+		},
+		{
+			{0, 0, 1},
+			{-1, 0, 0},
+			{0, -1, 0},
+		},
+		{
+			{0, -1, 0},
+			{-1, 0, 0},
+			{0, 0, -1},
+		},
+		{
+			{0, 0, -1},
+			{-1, 0, 0},
+			{0, 1, 0},
+		},
+		{
+			{0, 0, -1},
+			{0, 1, 0},
+			{1, 0, 0},
+		},
+		{
+			{0, 1, 0},
+			{0, 0, 1},
+			{1, 0, 0},
+		},
+		{
+			{0, 0, 1},
+			{0, -1, 0},
+			{1, 0, 0},
+		},
+		{
+			{0, -1, 0},
+			{0, 0, -1},
+			{1, 0, 0},
+		},
+		{
+			{0, 0, -1},
+			{0, -1, 0},
+			{-1, 0, 0},
+		},
+		{
+			{0, -1, 0},
+			{0, 0, 1},
+			{-1, 0, 0},
+		},
+		{
+			{0, 0, 1},
+			{0, 1, 0},
+			{-1, 0, 0},
+		},
+		{
+			{0, 1, 0},
+			{0, 0, -1},
+			{-1, 0, 0},
+		},
+	}
+
+	return rot
 }

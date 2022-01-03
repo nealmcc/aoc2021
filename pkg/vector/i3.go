@@ -1,7 +1,9 @@
 package vector
 
 import (
+	"bytes"
 	"errors"
+	"strconv"
 )
 
 // I3 is a vector in three-dimensional integer space.
@@ -9,82 +11,105 @@ type I3 struct {
 	X, Y, Z int
 }
 
-// ReflectXY reflects this vector through the x-y plane.
-func (v *I3) ReflectXY() {
-	v.Z *= -1
+// ParseI3 interprets the given slice of bytes as a triplet of integers
+// and returns the corresponding x,y,z vector.
+func ParseI3(text []byte) (I3, error) {
+	parts := bytes.Split(text, []byte{','})
+	if len(parts) != 3 {
+		return I3{}, errors.New("malformed input")
+	}
+
+	x, err := strconv.Atoi(string(parts[0]))
+	if err != nil {
+		return I3{}, err
+	}
+	y, err := strconv.Atoi(string(parts[1]))
+	if err != nil {
+		return I3{}, err
+	}
+
+	z, err := strconv.Atoi(string(parts[2]))
+	if err != nil {
+		return I3{}, err
+	}
+
+	return I3{X: x, Y: y, Z: z}, nil
 }
 
-// RotX90 rotates this vector 90 degrees about the x-axis.
-func (v *I3) RotX90() {
-	v.Transform([][]int{
+// Add returns a copy of the vector sum of (v + v2).
+func (v I3) Add(v2 I3) I3 {
+	v.X += v2.X
+	v.Y += v2.Y
+	v.Z += v2.Z
+	return v
+}
+
+// Subtract returns the vector difference (v - v2).
+func (v I3) Subtract(v2 I3) I3 {
+	v.X -= v2.X
+	v.Y -= v2.Y
+	v.Z -= v2.Z
+	return v
+}
+
+// ToMatrix converts this vector to a matrix in column vector form, suitable
+// for use in a cross product with a linear transformation.
+func (v I3) ToMatrix() Matrix {
+	return Matrix{{v.X}, {v.Y}, {v.Z}}
+}
+
+// RotX90 returns a copy of this vector rotated 90 degrees about the x-axis.
+func (v I3) RotX90() I3 {
+	v, _ = v.Transform(Matrix{
 		{1, 0, 0},  // x = (1,       0,       0)
 		{0, 0, -1}, // y = (0, cos(90), -sin(90))
 		{0, 1, 0},  // z = (0, sin(90), cos(90))
 	})
+	return v
 }
 
-// I3RotX90 rotates this vector 90 degrees about the x-axis.
-func (v *I3) RotY90() {
-	v.Transform([][]int{
+// I3RotY90 returns a copy of this vector rotated 90 degrees about the y-axis.
+func (v I3) RotY90() I3 {
+	v, _ = v.Transform(Matrix{
 		{0, 0, 1},  // x = (cos(90),  0,  sin(90))
 		{0, 1, 0},  // y = (      0,  1,       0)
 		{-1, 0, 0}, // z = (-sin(90), 0, cos(90))
 	})
+	return v
 }
 
-// RotZ90 rotates this vector 90-degrees about the z axis.
-func (v *I3) RotZ90() {
-	v.Transform([][]int{
-		{0, -1, 0}, // x = (cos(90), -sin(90), 0)
-		{1, 0, 0},  // y = (sin(90),  cos(90), 0)
-		{0, 0, 1},  // z = (      0,        0, 1)
+// RotZ90 returns a copy of this vector rotated 90-degrees about the z axis.
+func (v I3) RotZ90() I3 {
+	v, _ = v.Transform(Matrix{
+		{0, -1, 0}, // x = (cos(90), -sin(90), 0) x becomes negative y
+		{1, 0, 0},  // y = (sin(90),  cos(90), 0) y becomes x
+		{0, 0, 1},  // z = (      0,        0, 1) z is unaffected
 	})
+	return v
 }
 
-// I3Transform applies the given linear transformation m to this vector.
+// I3Transform returns a copy of this vector transformed by m.
 // see: https://www.khanacademy.org/math/linear-algebra/matrix-transformations
-func (v *I3) Transform(m [][]int) error {
-	c, err := CrossProduct(m, [][]int{{v.X}, {v.Y}, {v.Z}})
+func (v I3) Transform(m Matrix) (I3, error) {
+	c, err := m.Times(v.ToMatrix())
 	if err != nil {
-		return err
+		return I3{}, err
 	}
 
 	v.X = c[0][0]
 	v.Y = c[1][0]
 	v.Z = c[2][0]
 
-	return nil
+	return v, nil
 }
 
-// Translate this vector by the given amount.
-func (v *I3) Translate(t I3) {
-	v.X += t.X
-	v.Y += t.Y
-	v.Z += t.Z
-}
-
-// CrossProduct multiples matrix a by matrix b.
-// Matrix a must be of size [m][n].
-// Matrix b must be of size [n][p].
-// The result is a matrix of size[m][p].
-// Assumes neither matrix is empty.
-func CrossProduct(a, b [][]int) ([][]int, error) {
-	m, n, n1, p := len(a), len(a[0]), len(b), len(b[0])
-	if n != n1 {
-		return nil, errors.New("mismatched matrix sizes")
+// IdentityI3 returns the identity matrix in I3
+func IdentityI3() Matrix {
+	return Matrix{
+		{1, 0, 0},
+		{0, 1, 0},
+		{0, 0, 1},
 	}
-
-	out := make([][]int, m)
-	for x := 0; x < m; x++ {
-		out[x] = make([]int, p)
-		for y := 0; y < p; y++ {
-			for i := 0; i < n; i++ {
-				out[x][y] += a[x][i] * b[i][y]
-			}
-		}
-	}
-
-	return out, nil
 }
 
 // Bounds finds a bounding box that encloses all of the given coordinates.
