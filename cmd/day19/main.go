@@ -38,12 +38,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p1 := part1(blocks)
+	ocean := part1(blocks)
+	dist := part2(ocean)
 
 	end := time.Now()
 
-	fmt.Println("part1:", p1)
-	// fmt.Println("part2:", p2)
+	fmt.Println("part1:", len(ocean.Beacons))
+	fmt.Println("part2:", dist)
 	fmt.Printf("time taken: %s\n", end.Sub(start))
 }
 
@@ -88,27 +89,59 @@ func read(r io.Reader) ([]block, error) {
 	return blocks, nil
 }
 
-func part1(blocks []block) int {
-	// assume the first block is facing the 'normal' way.
-	// loop through each of the remaining blocks:
-	//   - rotate that other block until it 'fits' with this one.
-	//   - that is, it must have some rotation and reflection such
-	//     that at least 12 of its beacons line up with the cumulative group.
-	//   - find that rotation and translation, apply it to the other block,
-	//     and merge them together.
-	return 0
+func part1(blocks []block) block {
+	ocean := blocks[0]
+
+	q := Queue{}
+	for _, box := range blocks[1:] {
+		q.Push(box)
+	}
+
+	for q.Length() > 0 {
+		next := q.Pop()
+
+		if box2r, ok := rotateToMatch(ocean, next, 12); ok {
+			ocean.merge(box2r)
+		} else {
+			q.Push(next)
+		}
+	}
+
+	return ocean
+}
+
+// rotateToMatch repeatedly attempts to rotate box2 until it can match box1,
+// or else there are no more rotations to attempt.  Returns the first
+// transformation of box2 that matches box1.
+// Returns false if no match can be found.
+func rotateToMatch(box1, box2 block, minQty int) (block, bool) {
+	sort.Sort(byXYZ(box1.Beacons))
+
+	for _, rot := range getRotations() {
+		box2t := box2.transform(rot)
+		sort.Sort(byXYZ(box2t.Beacons))
+
+		b1, b2 := box1.Beacons, box2t.Beacons
+
+		if offset, isMatch := beaconsMatch(b1, b2, minQty); isMatch {
+			box2t = box2t.translate(offset)
+			return box2t, true
+		}
+	}
+
+	return box2, false
 }
 
 // transform creates a copy of this block, with all of its vectors transformed
 // using the given linear transformation
 func (box block) transform(m v.Matrix) block {
 	b2 := block{
+		Beacons: make([]v.I3, 0, len(box.Beacons)),
 		Sensors: make(map[int]v.I3, len(box.Sensors)),
-		Beacons: make([]v.I3, len(box.Beacons)),
 	}
-	for i, bn := range box.Beacons {
+	for _, bn := range box.Beacons {
 		bn2, _ := bn.Transform(m)
-		b2.Beacons[i] = bn2
+		b2.Beacons = append(b2.Beacons, bn2)
 	}
 
 	for id, s := range box.Sensors {
@@ -137,27 +170,22 @@ func (box block) translate(delta v.I3) block {
 	return b2
 }
 
-// rotateToMatch repeatedly attempts to rotate box2 until it can match box1,
-// or else there are no more rotations to attempt.  Returns the first
-// transformation of box2 that matches box1.
-// Returns false if no match can be found.
-func rotateToMatch(box1, box2 block, minQty int) (block, bool) {
-	sort.Sort(byXYZ(box1.Beacons))
-	sort.Sort(byXYZ(box2.Beacons))
-
-	for _, rot := range getRotations() {
-		box2t := box2.transform(rot)
-		sort.Sort(byXYZ(box2t.Beacons))
-
-		b1, b2 := box1.Beacons, box2t.Beacons
-
-		if offset, isMatch := beaconsMatch(b1, b2, minQty); isMatch {
-			box2t = box2t.translate(offset)
-			return box2t, true
-		}
+// merge adds the given block to this one.
+func (box *block) merge(box2 block) {
+	for id, sensor := range box2.Sensors {
+		box.Sensors[id] = sensor
 	}
 
-	return box2, false
+	unique := make(map[v.I3]struct{}, 16)
+
+	for _, bn := range append(box.Beacons, box2.Beacons...) {
+		unique[bn] = struct{}{}
+	}
+
+	box.Beacons = make([]v.I3, 0, len(unique))
+	for bn := range unique {
+		box.Beacons = append(box.Beacons, bn)
+	}
 }
 
 // beaconsMatch finds the offset between the two slices of beacons, if they have
@@ -182,7 +210,9 @@ func beaconsMatch(beacons1, beacons2 []v.I3, minQty int) (offset v.I3, isMatch b
 			// walk both lists at the same time, counting identical beacons
 			var i1, i2, n int
 			for i1 < len(b1) && i2 < len(b2) {
-				if b1[i1] == b2[i2].Add(offset) {
+				b2Offset := b2[i2].Add(offset)
+
+				if b1[i1] == b2Offset {
 					i1, i2, n = i1+1, i2+1, n+1
 					if n >= minQty {
 						return offset, true
@@ -190,7 +220,7 @@ func beaconsMatch(beacons1, beacons2 []v.I3, minQty int) (offset v.I3, isMatch b
 					continue
 				}
 
-				if isLess(b1[i1], b2[i2]) {
+				if isLess(b1[i1], b2Offset) {
 					i1++
 					continue
 				}
@@ -330,4 +360,31 @@ func getRotations() []v.Matrix {
 	}
 
 	return rot
+}
+
+// part2 calculates the manhattan distance of the two furthest apart sensors
+func part2(ocean block) int {
+	sensors := make([]v.I3, 0, len(ocean.Sensors))
+	for _, s := range ocean.Sensors {
+		sensors = append(sensors, s)
+	}
+
+	max := 0
+	for i := 0; i < len(sensors)-1; i++ {
+		for j := 0; j < len(sensors); j++ {
+			s1, s2 := sensors[i], sensors[j]
+			d := manhattan(s1, s2)
+			if d > max {
+				max = d
+			}
+		}
+	}
+
+	return max
+}
+
+func manhattan(p1, p2 v.I3) int {
+	b := v.Bounds([]v.I3{p1, p2})
+	x, y, z := b.X2-b.X1, b.Y2-b.Y1, b.Z2-b.Z1
+	return x + y + z
 }
